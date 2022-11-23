@@ -40,18 +40,11 @@ pub struct NetworksParams {
 }
 
 pub async fn networks(Query(params): Query<NetworksParams>) -> impl IntoResponse {
-    let bad_request = (
-        StatusCode::BAD_REQUEST,
-        Json(Response::new(
-            "chain is required".to_string(),
-            serde_json::Value::Null,
-        )),
-    );
     let Some(chain) = params.chain else {
-        return bad_request;
+        return (StatusCode::BAD_REQUEST, Json(Response::new("chain required".to_string(), serde_json::Value::Null)));
     };
     let Ok(chain) = chain.parse::<ChainEnum>() else {
-        return bad_request;
+        return (StatusCode::BAD_REQUEST, Json(Response::new("chain invalid".to_string(), serde_json::Value::Null)));
     };
     match serde_json::to_value(Chain::new(chain).networks) {
         Ok(result) => (
@@ -88,25 +81,26 @@ pub struct CreateApp {
 }
 
 pub async fn create_app(Json(payload): Json<CreateApp>) -> impl IntoResponse {
-    tracing::debug!("create_app: {:?}", payload);
-    let bad_request = (
-        StatusCode::BAD_REQUEST,
-        Json(Response::new(
-            "invaild parameters".to_string(),
-            serde_json::Value::Null,
-        )),
-    );
-    let Ok(mut user) = payload.account.parse::<Account>()else{
-        return bad_request;
+    let Ok(mut user) = payload.account.parse::<Account>() else {
+        return (StatusCode::BAD_REQUEST, Json(Response::new("invaild parameters".to_string(), serde_json::Value::Null)));
     };
     let Ok(chain) = payload.chain.parse::<ChainEnum>() else {
-        return bad_request;
+        return (StatusCode::BAD_REQUEST, Json(Response::new("invaild parameters".to_string(), serde_json::Value::Null)));
     };
     let Ok(network) = payload.network.parse::<NetworkEnum>() else {
-        return bad_request;
+        return (StatusCode::BAD_REQUEST, Json(Response::new("invaild parameters".to_string(), serde_json::Value::Null)));
     };
-    let Ok(app) = user.create_app(&payload.name, &payload.description, chain, network) else {
-        return bad_request;
+    let app = match user.create_app(&payload.name, &payload.description, chain, network) {
+        Ok(app) => app,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(Response {
+                    message: format!("create app failed, {}", e),
+                    result: serde_json::Value::Null,
+                }),
+            )
+        }
     };
     match serde_json::to_value(app) {
         Ok(result) => (
@@ -127,27 +121,20 @@ pub struct AppsParams {
 }
 
 pub async fn get_apps(Query(params): Query<AppsParams>) -> impl IntoResponse {
-    let bad_request = (
-        StatusCode::BAD_REQUEST,
-        Json(Response::new(
-            "account is required".to_string(),
-            serde_json::Value::Null,
-        )),
-    );
     let Some(account) = params.account else {
-        return bad_request;
+        return (StatusCode::BAD_REQUEST, Json(Response::new("account required".to_string(), serde_json::Value::Null)));
     };
     let Ok(user) = account.parse::<Account>() else {
-        return bad_request;
+        return (StatusCode::BAD_REQUEST, Json(Response::new("account invalid".to_string(), serde_json::Value::Null)));
     };
-    let Ok(apps) = user.get_apps() else {
-        return (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(Response::new(
-                "failed to get apps".to_string(),
-                serde_json::Value::Null,
-            )),
-        );
+    let apps = match user.get_apps() {
+        Ok(apps) => apps,
+        Err(e) => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(Response::new(e.to_string(), serde_json::Value::Null)),
+            )
+        }
     };
     match serde_json::to_value(apps) {
         Ok(result) => (

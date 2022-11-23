@@ -102,20 +102,18 @@ impl App {
         let mut stmt = conn.prepare("SELECT * FROM app WHERE account = ?1 AND id = ?2;")?;
         let mut rows = stmt.query(params![account, id])?;
         match rows.next() {
-            Ok(Some(row)) => {
-                Ok(Self {
-                    account: row.get(0)?,
-                    id: row.get(1)?,
-                    name: row.get(2)?,
-                    description: row.get(3)?,
-                    chain: row.get(4)?,
-                    network: row.get(5)?,
-                    api_key: row.get(6)?,
-                    today_requests: row.get(7)?,
-                    total_requests: row.get(8)?,
-                    created_at: row.get(9)?,
-                })
-            }
+            Ok(Some(row)) => Ok(Self {
+                account: row.get(0)?,
+                id: row.get(1)?,
+                name: row.get(2)?,
+                description: row.get(3)?,
+                chain: row.get(4)?,
+                network: row.get(5)?,
+                api_key: row.get(6)?,
+                today_requests: row.get(7)?,
+                total_requests: row.get(8)?,
+                created_at: row.get(9)?,
+            }),
             Ok(None) => Err(anyhow!("App not found")),
             Err(e) => Err(anyhow!(e)),
         }
