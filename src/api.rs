@@ -1,141 +1,162 @@
-use axum::{extract::Query, http::StatusCode, response::IntoResponse, Json};
-use serde::{Deserialize, Serialize};
+use std::{fmt, str::FromStr};
 
-const ETHEREUM_HTTP: &str = "http://localhost/http_node";
-const ETHEREUM_WS: &str = "ws://localhost/ws_node";
+use axum::{extract::Query, http::StatusCode, response::IntoResponse, Json};
+use serde::{de, Deserialize, Deserializer, Serialize};
+
+use crate::model::{
+    account::Account,
+    chain::{Chain, ChainEnum, NetworkEnum},
+};
 
 #[derive(Deserialize, Serialize)]
 pub struct Response {
-    code: u16,
     message: String,
     result: serde_json::Value,
 }
 
 impl Response {
-    pub fn new(code: u16, message: String, result: serde_json::Value) -> Self {
-        Self {
-            code,
-            message,
-            result,
-        }
+    pub fn new(message: String, result: serde_json::Value) -> Self {
+        Self { message, result }
     }
 }
 
-#[derive(Deserialize, Serialize)]
-pub struct Chain {
-    pub name: String,
-    pub http_address: String,
-    pub websocket_address: String,
-}
-
-impl Chain {
-    pub fn new(name: &str, http_address: &str, websocket_address: &str) -> Self {
-        Self {
-            name: name.to_string(),
-            http_address: http_address.to_string(),
-            websocket_address: websocket_address.to_string(),
-        }
-    }
-    pub fn get_all_default() -> Vec<Self> {
-        vec![
-            Chain::new("ethereum", ETHEREUM_HTTP, ETHEREUM_WS),
-            Chain::new("bsc", ETHEREUM_HTTP, ETHEREUM_WS),
-            Chain::new("polygon", ETHEREUM_HTTP, ETHEREUM_WS),
-            Chain::new("avalanche", ETHEREUM_HTTP, ETHEREUM_WS),
-            Chain::new("optimism", ETHEREUM_HTTP, ETHEREUM_WS),
-            Chain::new("zksync", ETHEREUM_HTTP, ETHEREUM_WS),
-            Chain::new("startware", ETHEREUM_HTTP, ETHEREUM_WS),
-            Chain::new("near", ETHEREUM_HTTP, ETHEREUM_WS),
-            Chain::new("aptos", ETHEREUM_HTTP, ETHEREUM_WS),
-            Chain::new("sui", ETHEREUM_HTTP, ETHEREUM_WS),
-        ]
-    }
-
-    pub fn get_all(account: Option<String>) -> Vec<Self> {
-        if account.is_none() {
-            return Chain::get_all_default();
-        }
-        let md5str = md5::compute(account.unwrap());
-        vec![
-            Chain::new(
-                "ethereum",
-                format!("{}/{:x}", ETHEREUM_HTTP, md5str).as_str(),
-                format!("{}/{:x}", ETHEREUM_WS, md5str).as_str(),
-            ),
-            Chain::new(
-                "bsc",
-                format!("{}/{:x}", ETHEREUM_HTTP, md5str).as_str(),
-                format!("{}/{:x}", ETHEREUM_WS, md5str).as_str(),
-            ),
-            Chain::new(
-                "polygon",
-                format!("{}/{:x}", ETHEREUM_HTTP, md5str).as_str(),
-                format!("{}/{:x}", ETHEREUM_WS, md5str).as_str(),
-            ),
-            Chain::new(
-                "avalanche",
-                format!("{}/{:x}", ETHEREUM_HTTP, md5str).as_str(),
-                format!("{}/{:x}", ETHEREUM_WS, md5str).as_str(),
-            ),
-            Chain::new(
-                "optimism",
-                format!("{}/{:x}", ETHEREUM_HTTP, md5str).as_str(),
-                format!("{}/{:x}", ETHEREUM_WS, md5str).as_str(),
-            ),
-            Chain::new(
-                "zksync",
-                format!("{}/{:x}", ETHEREUM_HTTP, md5str).as_str(),
-                format!("{}/{:x}", ETHEREUM_WS, md5str).as_str(),
-            ),
-            Chain::new(
-                "startware",
-                format!("{}/{:x}", ETHEREUM_HTTP, md5str).as_str(),
-                format!("{}/{:x}", ETHEREUM_WS, md5str).as_str(),
-            ),
-            Chain::new(
-                "near",
-                format!("{}/{:x}", ETHEREUM_HTTP, md5str).as_str(),
-                format!("{}/{:x}", ETHEREUM_WS, md5str).as_str(),
-            ),
-            Chain::new(
-                "aptos",
-                format!("{}/{:x}", ETHEREUM_HTTP, md5str).as_str(),
-                format!("{}/{:x}", ETHEREUM_WS, md5str).as_str(),
-            ),
-            Chain::new(
-                "sui",
-                format!("{}/{:x}", ETHEREUM_HTTP, md5str).as_str(),
-                format!("{}/{:x}", ETHEREUM_WS, md5str).as_str(),
-            ),
-        ]
+pub async fn chains() -> impl IntoResponse {
+    match serde_json::to_value(ChainEnum::get_all()) {
+        Ok(result) => (
+            StatusCode::OK,
+            Json(Response::new("ok".to_string(), result)),
+        ),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(Response::new(e.to_string(), serde_json::Value::Null)),
+        ),
     }
 }
 
 #[derive(Deserialize, Serialize, Debug)]
-pub struct ChainsParams {
-    account: Option<String>,
+pub struct NetworksParams {
+    #[serde(default, deserialize_with = "empty_string_as_none")]
+    chain: Option<String>,
 }
 
-pub async fn chains(Query(params): Query<ChainsParams>) -> impl IntoResponse {
-    match serde_json::to_value(Chain::get_all(params.account)) {
+pub async fn networks(Query(params): Query<NetworksParams>) -> impl IntoResponse {
+    let bad_request = (
+        StatusCode::BAD_REQUEST,
+        Json(Response::new(
+            "chain is required".to_string(),
+            serde_json::Value::Null,
+        )),
+    );
+    let Some(chain) = params.chain else {
+        return bad_request;
+    };
+    let Ok(chain) = chain.parse::<ChainEnum>() else {
+        return bad_request;
+    };
+    match serde_json::to_value(Chain::new(chain).networks) {
         Ok(result) => (
             StatusCode::OK,
-            Json(Response::new(200, "ok".to_string(), result)),
+            Json(Response::new("ok".to_string(), result)),
         ),
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(Response::new(500, e.to_string(), serde_json::Value::Null)),
+            Json(Response::new(e.to_string(), serde_json::Value::Null)),
         ),
     }
 }
 
-pub async fn register() -> impl IntoResponse {
-    (
-        StatusCode::OK,
+fn empty_string_as_none<'de, D, T>(de: D) -> Result<Option<T>, D::Error>
+where
+    D: Deserializer<'de>,
+    T: FromStr,
+    T::Err: fmt::Display,
+{
+    let opt = Option::<String>::deserialize(de)?;
+    match opt.as_deref() {
+        None | Some("") => Ok(None),
+        Some(s) => FromStr::from_str(s).map_err(de::Error::custom).map(Some),
+    }
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct CreateApp {
+    pub name: String,
+    pub description: String,
+    pub chain: String,
+    pub network: String,
+    pub account: String,
+}
+
+pub async fn create_app(Json(payload): Json<CreateApp>) -> impl IntoResponse {
+    tracing::debug!("create_app: {:?}", payload);
+    let bad_request = (
+        StatusCode::BAD_REQUEST,
         Json(Response::new(
-            200,
-            "ok".to_string(),
+            "invaild parameters".to_string(),
             serde_json::Value::Null,
         )),
-    )
+    );
+    let Ok(mut user) = payload.account.parse::<Account>()else{
+        return bad_request;
+    };
+    let Ok(chain) = payload.chain.parse::<ChainEnum>() else {
+        return bad_request;
+    };
+    let Ok(network) = payload.network.parse::<NetworkEnum>() else {
+        return bad_request;
+    };
+    let Ok(app) = user.create_app(&payload.name, &payload.description, chain, network) else {
+        return bad_request;
+    };
+    match serde_json::to_value(app) {
+        Ok(result) => (
+            StatusCode::OK,
+            Json(Response::new("ok".to_string(), result)),
+        ),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(Response::new(e.to_string(), serde_json::Value::Null)),
+        ),
+    }
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct AppsParams {
+    #[serde(default, deserialize_with = "empty_string_as_none")]
+    account: Option<String>,
+}
+
+pub async fn get_apps(Query(params): Query<AppsParams>) -> impl IntoResponse {
+    let bad_request = (
+        StatusCode::BAD_REQUEST,
+        Json(Response::new(
+            "account is required".to_string(),
+            serde_json::Value::Null,
+        )),
+    );
+    let Some(account) = params.account else {
+        return bad_request;
+    };
+    let Ok(user) = account.parse::<Account>() else {
+        return bad_request;
+    };
+    let Ok(apps) = user.get_apps() else {
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(Response::new(
+                "failed to get apps".to_string(),
+                serde_json::Value::Null,
+            )),
+        );
+    };
+    match serde_json::to_value(apps) {
+        Ok(result) => (
+            StatusCode::OK,
+            Json(Response::new("ok".to_string(), result)),
+        ),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(Response::new(e.to_string(), serde_json::Value::Null)),
+        ),
+    }
 }
