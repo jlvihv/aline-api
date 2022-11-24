@@ -1,7 +1,7 @@
 use aline_api::{api, model::account, model::app};
 use anyhow::Result;
 use axum::{
-    routing::{get, post},
+    routing::{delete, get, post},
     Router,
 };
 use std::net::SocketAddr;
@@ -14,11 +14,12 @@ async fn main() {
 
     let app = Router::new()
         .route("/chains", get(api::chains))
-        .route("/networks", get(api::networks))
+        .route("/networks/:chain", get(api::networks))
+        .route("/apps/:account", get(api::get_apps))
         .route("/app", post(api::create_app))
-        .route("/apps", get(api::get_apps));
+        .route("/app/:account/:app_id", delete(api::delete_app));
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
+    let addr = SocketAddr::from(([0, 0, 0, 0], 9911));
     tracing::info!("listening on {}", addr);
 
     axum::Server::bind(&addr)

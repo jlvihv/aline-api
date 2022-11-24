@@ -3,9 +3,12 @@ use chrono::Local;
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 
-use super::chain::{self, ChainEnum, NetworkEnum};
+use super::{
+    chain::{self, ChainEnum, NetworkEnum},
+    code_examples,
+};
 
-#[derive(Deserialize, Serialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, Debug, Clone, Default)]
 pub struct App {
     pub account: String,
     pub id: u32,
@@ -17,6 +20,9 @@ pub struct App {
     pub today_requests: u32,
     pub total_requests: u32,
     pub created_at: String,
+    pub http_link: String,
+    pub websocket_link: String,
+    pub code_examples: code_examples::CodeExample,
 }
 
 impl App {
@@ -43,17 +49,29 @@ impl App {
             today_requests: 0,
             total_requests: 0,
             created_at: Local::now().to_string(),
+            http_link: "".to_string(),
+            websocket_link: "".to_string(),
+            ..Default::default()
         };
-        app.generate_key();
+        app.generate_key()?;
         app.save()?;
+        app.generate_code_example();
         Ok(app)
     }
 
-    fn generate_key(&mut self) {
+    fn generate_key(&mut self) -> Result<()> {
         self.api_key = format!(
             "{:x}",
             md5::compute(format!("{}-{}-{}", self.account, self.id, self.created_at))
         );
+        let ch = match self.chain.parse::<chain::ChainEnum>() {
+            Ok(c) => c,
+            Err(_) => return Err(anyhow!("Chain not found")),
+        };
+        let ch = chain::Chain::new(ch);
+        self.http_link = format!("{}/{}", ch.http_address, self.api_key);
+        self.websocket_link = format!("{}/{}", ch.websocket_address, self.api_key);
+        Ok(())
     }
 
     pub fn init_db() -> Result<()> {
@@ -70,6 +88,8 @@ impl App {
                 today_requests INTEGER NOT NULL,
                 total_requests INTEGER NOT NULL,
                 created_at TEXT NOT NULL,
+                http_link TEXT NOT NULL,
+                websocket_link TEXT NOT NULL,
                 PRIMARY KEY (account, id)
             );",
             params![],
@@ -80,7 +100,7 @@ impl App {
     fn save(&self) -> Result<()> {
         let conn = Connection::open("db.sqlite")?;
         conn.execute(
-            "INSERT INTO app (account, id, name, description, chain, network, api_key, today_requests, total_requests, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10);",
+            "INSERT INTO app (account, id, name, description, chain, network, api_key, today_requests, total_requests, created_at, http_link, websocket_link) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12);",
             params![
                 self.account,
                 self.id,
@@ -91,10 +111,16 @@ impl App {
                 self.api_key,
                 self.today_requests,
                 self.total_requests,
-                self.created_at
+                self.created_at,
+                self.http_link,
+                self.websocket_link,
             ],
         )?;
         Ok(())
+    }
+
+    pub fn generate_code_example(&mut self) {
+        self.code_examples = code_examples::get_code_example(&self.http_link);
     }
 
     pub fn get(account: &str, id: u32) -> Result<Self> {
@@ -102,18 +128,25 @@ impl App {
         let mut stmt = conn.prepare("SELECT * FROM app WHERE account = ?1 AND id = ?2;")?;
         let mut rows = stmt.query(params![account, id])?;
         match rows.next() {
-            Ok(Some(row)) => Ok(Self {
-                account: row.get(0)?,
-                id: row.get(1)?,
-                name: row.get(2)?,
-                description: row.get(3)?,
-                chain: row.get(4)?,
-                network: row.get(5)?,
-                api_key: row.get(6)?,
-                today_requests: row.get(7)?,
-                total_requests: row.get(8)?,
-                created_at: row.get(9)?,
-            }),
+            Ok(Some(row)) => {
+                let mut a = Self {
+                    account: row.get(0)?,
+                    id: row.get(1)?,
+                    name: row.get(2)?,
+                    description: row.get(3)?,
+                    chain: row.get(4)?,
+                    network: row.get(5)?,
+                    api_key: row.get(6)?,
+                    today_requests: row.get(7)?,
+                    total_requests: row.get(8)?,
+                    created_at: row.get(9)?,
+                    http_link: row.get(10)?,
+                    websocket_link: row.get(11)?,
+                    ..App::default()
+                };
+                a.generate_code_example();
+                Ok(a)
+            }
             Ok(None) => Err(anyhow!("App not found")),
             Err(e) => Err(anyhow!(e)),
         }
