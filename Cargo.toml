@@ -22,3 +22,6 @@ tracing-subscriber = "0.3.16"
 [[bin]]
 name = "aline-api"
 path = "src/bin/main.rs"
+
+[profile.release]
+strip = true

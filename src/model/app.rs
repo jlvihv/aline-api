@@ -45,12 +45,9 @@ impl App {
             description: description.to_string(),
             chain: chain.to_string(),
             network: network.to_string(),
-            api_key: "".to_string(),
             today_requests: 0,
             total_requests: 0,
             created_at: Local::now().to_string(),
-            http_link: "".to_string(),
-            websocket_link: "".to_string(),
             ..Default::default()
         };
         app.generate_key()?;
