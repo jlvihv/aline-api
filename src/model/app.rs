@@ -1,6 +1,5 @@
 use anyhow::{anyhow, Result};
 use chrono::Local;
-use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 
 use super::{
@@ -72,47 +71,40 @@ impl App {
     }
 
     pub fn init_db() -> Result<()> {
-        let conn = Connection::open("db.sqlite")?;
-        conn.execute(
-            "CREATE TABLE IF NOT EXISTS app (
-                account TEXT NOT NULL,
-                id INTEGER NOT NULL,
-                name TEXT NOT NULL,
-                description TEXT NOT NULL,
-                chain TEXT NOT NULL,
-                network TEXT NOT NULL,
-                api_key TEXT NOT NULL,
-                today_requests INTEGER NOT NULL,
-                total_requests INTEGER NOT NULL,
-                created_at TEXT NOT NULL,
-                http_link TEXT NOT NULL,
-                websocket_link TEXT NOT NULL,
-                PRIMARY KEY (account, id)
-            );",
-            params![],
-        )?;
+        // let sql = std::env::var("SQL_CREATE_TABLE_APP")?;
+        // let mut conn = db::get_connection()?;
+        // if let Err(e) = conn.query_drop(sql) {
+        //     tracing::error!("Error creating table app: {}", e);
+        //     Err(anyhow!(e))
+        // } else {
+        //     Ok(())
+        // }
         Ok(())
     }
 
     fn save(&self) -> Result<()> {
-        let conn = Connection::open("db.sqlite")?;
-        conn.execute(
-            "INSERT INTO app (account, id, name, description, chain, network, api_key, today_requests, total_requests, created_at, http_link, websocket_link) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12);",
-            params![
-                self.account,
-                self.id,
-                self.name,
-                self.description,
-                self.chain,
-                self.network,
-                self.api_key,
-                self.today_requests,
-                self.total_requests,
-                self.created_at,
-                self.http_link,
-                self.websocket_link,
-            ],
-        )?;
+        // let mut conn = db::get_connection()?;
+        // conn.exec_drop(
+        //     "INSERT INTO app(
+        //         account, id, name, description, chain, network, api_key, today_requests, total_requests, created_at, http_link, websocket_link
+        //     ) VALUES (
+        //         :account, :id, :name, :description, :chain, :network, :api_key, :today_requests, :total_requests, :created_at, :http_link, :websocket_link
+        //     );",
+        //     params! {
+        //         "account" => &self.account,
+        //         "id" => &self.id,
+        //         "name" => &self.name,
+        //         "description" => &self.description,
+        //         "chain" => &self.chain,
+        //         "network" => &self.network,
+        //         "api_key" => &self.api_key,
+        //         "today_requests" => &self.today_requests,
+        //         "total_requests" => &self.total_requests,
+        //         "created_at" => &self.created_at,
+        //         "http_link" => &self.http_link,
+        //         "websocket_link" => &self.websocket_link,
+        //     },
+        // )?;
         Ok(())
     }
 
@@ -121,31 +113,62 @@ impl App {
     }
 
     pub fn get(account: &str, id: u32) -> Result<Self> {
-        let conn = Connection::open("db.sqlite")?;
-        let mut stmt = conn.prepare("SELECT * FROM app WHERE account = ?1 AND id = ?2;")?;
-        let mut rows = stmt.query(params![account, id])?;
-        match rows.next() {
-            Ok(Some(row)) => {
-                let mut a = Self {
-                    account: row.get(0)?,
-                    id: row.get(1)?,
-                    name: row.get(2)?,
-                    description: row.get(3)?,
-                    chain: row.get(4)?,
-                    network: row.get(5)?,
-                    api_key: row.get(6)?,
-                    today_requests: row.get(7)?,
-                    total_requests: row.get(8)?,
-                    created_at: row.get(9)?,
-                    http_link: row.get(10)?,
-                    websocket_link: row.get(11)?,
-                    ..App::default()
-                };
-                a.generate_code_example();
-                Ok(a)
-            }
-            Ok(None) => Err(anyhow!("App not found")),
-            Err(e) => Err(anyhow!(e)),
-        }
+        // let mut conn = db::get_connection()?;
+        // conn.exec_first(
+        //     "SELECT * FROM app WHERE account = :account AND id = :id;",
+        //     params! {
+        //         "account" => account,
+        //         "id" => id,
+        //     },
+        // )?
+        // .map(|row| {
+        //     let (
+        //         account,
+        //         id,
+        //         name,
+        //         description,
+        //         chain,
+        //         network,
+        //         api_key,
+        //         today_requests,
+        //         total_requests,
+        //         created_at,
+        //         http_link,
+        //         websocket_link,
+        //     ): (
+        //         String,
+        //         u32,
+        //         String,
+        //         String,
+        //         String,
+        //         String,
+        //         String,
+        //         u32,
+        //         u32,
+        //         String,
+        //         String,
+        //         String,
+        //     ) = mysql::from_row(row);
+        //     let mut app = Self {
+        //         account,
+        //         id,
+        //         name,
+        //         description,
+        //         chain,
+        //         network,
+        //         api_key,
+        //         today_requests,
+        //         total_requests,
+        //         created_at,
+        //         http_link,
+        //         websocket_link,
+        //         ..Default::default()
+        //     };
+        //     app.generate_code_example();
+        //     Ok(app)
+        // })
+        // .unwrap_or(Err(anyhow!("App not found")))
+
+        Ok(Self::default())
     }
 }

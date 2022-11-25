@@ -2,14 +2,19 @@ use axum::{
     extract::{Path, Query},
     http::StatusCode,
     response::IntoResponse,
-    Json,
+    Extension, Json,
 };
 use serde::{Deserialize, Serialize};
+use sqlx::{MySql, Pool};
 
 use crate::model::{
     account::Account,
     chain::{Chain, ChainEnum, NetworkEnum},
 };
+
+pub struct ApiContext {
+    pub db: Pool<MySql>,
+}
 
 #[derive(Deserialize, Serialize)]
 pub struct Response {
@@ -163,7 +168,10 @@ pub async fn get_apps(
     }
 }
 
-pub async fn delete_app(Path((account, app_id)): Path<(String, String)>) -> impl IntoResponse {
+pub async fn delete_app(
+    ctx: Extension<ApiContext>,
+    Path((account, app_id)): Path<(String, String)>,
+) -> impl IntoResponse {
     let Ok(user) = account.parse::<Account>() else {
         return (StatusCode::BAD_REQUEST, Json(Response::new("account invalid".to_string(), serde_json::Value::Null, None)));
     };
