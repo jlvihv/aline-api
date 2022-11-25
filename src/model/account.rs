@@ -1,12 +1,12 @@
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
-use sqlx::{MySql, Pool};
 
 use chrono::prelude::*;
 
 use super::{
     app::App,
     chain::{ChainEnum, NetworkEnum},
+    db,
 };
 
 #[derive(Deserialize, Serialize, Debug, Default)]
@@ -17,44 +17,40 @@ pub struct Account {
 }
 
 impl Account {
-    pub fn new(address: &str, pool: Pool<MySql>) -> Result<Self> {
+    pub async fn new(address: &str) -> Result<Self> {
         let a = Self {
             address: address.to_string(),
             created_at: Local::now().to_string(),
             app_id_index: 0,
         };
-        a.save(pool)?;
+        a.save().await?;
         Ok(a)
     }
 
-    pub fn get(address: &str, pool: Pool<MySql>) -> Result<Self> {
-        //     let mut conn = db::get_connection()?;
-        //     let result: Option<(String, String, u32)> = conn.exec_first(
-        //         "SELECT address, created_at, app_id_index FROM account WHERE address = :address;",
-        //         params! {
-        //             "address" => address,
-        //         },
-        //     )?;
-        //     if let Some(row) = result {
-        //         tracing::debug!("Account found: {:?}", row);
-        //         Ok(Self {
-        //             address: row.0,
-        //             created_at: row.1,
-        //             app_id_index: row.2,
-        //         })
-        //     } else {
-        //         Account::new(address)
-        //     }
-        Ok(Self::default())
+    pub async fn get(address: &str) -> Result<Self> {
+        let pool = db::get_db_pool();
+        let user = sqlx::query!("SELECT * FROM account WHERE address = $1", address)
+            .fetch_one(&pool)
+            .await
+            .map(|a| Self {
+                address: a.address,
+                created_at: a.created_at,
+                app_id_index: a.app_id_index as u32,
+            })
+            .map_err(|e| anyhow!(e));
+        if user.is_ok() {
+            user
+        } else {
+            Self::new(address).await
+        }
     }
 
-    pub fn create_app(
+    pub async fn create_app(
         &mut self,
         name: &str,
         description: &str,
         chain: ChainEnum,
         network: NetworkEnum,
-        pool: &Pool<MySql>,
     ) -> Result<App> {
         let app = App::new(
             &self.address,
@@ -63,107 +59,101 @@ impl Account {
             description,
             chain,
             network,
-        )?;
+        )
+        .await?;
         self.app_id_index += 1;
-        self.save(pool)?;
+        self.save().await?;
         Ok(app)
     }
 
-    pub fn delete_app(&self, id: &str) -> Result<()> {
-        // let mut conn = db::get_connection()?;
-        // let result = conn.exec_first(
-        //     "DELETE FROM app WHERE account = :account AND id = :id;",
-        //     params! {
-        //         "account" => &self.address,
-        //         "id" => id.parse::<u32>()?,
-        //     },
-        // )?.unwrap();
+    pub async fn delete_app(&self, id: &str) -> Result<()> {
+        let pool = db::get_db_pool();
+        let n = sqlx::query!(
+            "DELETE FROM app WHERE account = $1 AND id = $2;",
+            self.address,
+            id.parse::<i32>()?
+        )
+        .execute(&pool)
+        .await?;
+        if 0 == n.rows_affected() {
+            Err(anyhow!("App not found"))
+        } else {
+            Ok(())
+        }
+    }
 
+    async fn save(&self) -> Result<()> {
+        let pool = db::get_db_pool();
+        sqlx::query!(
+            "INSERT INTO account (
+                address, created_at, app_id_index
+            ) VALUES (
+                $1, $2, $3
+            )
+            ON CONFLICT (address)
+            DO UPDATE SET app_id_index = $3;",
+            self.address,
+            self.created_at,
+            self.app_id_index as i32,
+        )
+        .execute(&pool)
+        .await?;
         Ok(())
     }
 
-    pub fn init_db() -> Result<()> {
-        //     let sql = std::env::var("SQL_CREATE_TABLE_ACCOUNT")?;
-        //     let mut conn = db::get_connection()?;
-        //     if let Err(e) = conn.query_drop(sql) {
-        //         tracing::error!("Error creating table account: {}", e);
-        //         Err(anyhow!(e))
-        //     } else {
-        //         Ok(())
-        //     }
-        Ok(())
+    pub async fn get_apps_total(&self) -> Result<u32> {
+        let pool = db::get_db_pool();
+
+        let row = sqlx::query!(
+            "SELECT COUNT(*) as total FROM app WHERE account = $1",
+            self.address
+        )
+        .fetch_one(&pool)
+        .await?;
+
+        row.total
+            .map(|t| t as u32)
+            .ok_or_else(|| anyhow!("Failed to get total"))
     }
 
-    fn save(&self, pool: Pool<MySql>) -> Result<()> {
-        //     let mut conn = db::get_connection()?;
-        //     if let Err(e) = conn.exec_drop(
-        //         "INSERT INTO account (address, created_at, app_id_index) VALUES (:address, :created_at, :app_id_index)
-        //         ON DUPLICATE KEY UPDATE app_id_index = :app_id_index;",
-        //         params!{
-        //             "address" => &self.address,
-        //             "created_at" => &self.created_at,
-        //             "app_id_index" => &self.app_id_index,
-        //         },
-        //     ) {
-        //         tracing::error!("Error saving account: {}", e);
-        //         Err(anyhow!(e))
-        //     } else {
-        //         tracing::debug!("Account saved: {:?}", self);
-        //         Ok(())
-        //     }
-        Ok(())
-    }
-
-    pub fn get_apps_total(&self) -> Result<u32> {
-        //     let mut conn = db::get_connection()?;
-        //     let result: Option<u32> = conn.exec_first(
-        //         "SELECT COUNT(*) FROM app WHERE account = :account;",
-        //         params! {
-        //             "account" => &self.address,
-        //         },
-        //     )?;
-        //     result.ok_or_else(|| anyhow!("Error getting apps total"))
-        Ok(0)
-    }
-
-    pub fn get_apps(&self, page: u32, size: u32) -> Result<Vec<App>> {
-        // let mut conn = db::get_connection()?;
-        // let offset = (page - 1) * size;
-        // let apps:Vec<App> = conn.exec(
-        //     "SELECT account, id, name, description, chain, network, api_key, today_requests, created_at, http_link, websocket_link FROM app WHERE account = :address LIMIT :offset, :size;",
-        //     params! {
-        //         "address" => &self.address,
-        //         "offset" => offset,
-        //         "size" => size,
-        //     },
-        // ).map(|row:Vec<(String,u32,String,String,String,String,String,u32,String,String,String)>| {
-        //     row.map(|(account, id, name, description, chain, network, api_key, today_requests, created_at, http_link, websocket_link)|{
-        //         let mut a = App {
-        //             account,
-        //             id,
-        //             name,
-        //             description,
-        //             chain,
-        //             network,
-        //             api_key,
-        //             today_requests,
-        //             created_at,
-        //             http_link,
-        //             websocket_link,
-        //             ..Default::default()
-        //         };
-        //         a.generate_code_example();
-        //         Ok(a)
-        //     })
-        // }).unwrap();
-        // Ok(apps)
-        Err(anyhow!("Not implemented"))
+    pub async fn get_apps(&self, page: u32, size: u32) -> Result<Vec<App>> {
+        if page == 0 {
+            return Err(anyhow!("Page must be greater than 0"));
+        }
+        let offset = (page - 1) * size;
+        let pool = db::get_db_pool();
+        let apps = sqlx::query!(
+            "SELECT
+                account, id, name, description, chain, network, api_key, today_requests, created_at, http_link, websocket_link
+            FROM app
+            WHERE
+                account = $1
+            LIMIT $2
+            OFFSET $3;",
+            self.address,
+            size as i64,
+            offset as i64,
+        )
+        .fetch_all(&pool).await?;
+        apps.into_iter()
+            .map(|a| {
+                let mut app = App {
+                    account: a.account,
+                    id: a.id as u32,
+                    name: a.name,
+                    description: a.description,
+                    chain: a.chain,
+                    network: a.network,
+                    api_key: a.api_key,
+                    today_requests: a.today_requests as u32,
+                    created_at: a.created_at,
+                    http_link: a.http_link,
+                    websocket_link: a.websocket_link,
+                    ..Default::default()
+                };
+                app.generate_code_example();
+                Ok(app)
+            })
+            .collect()
     }
 }
-
-// impl FromStr for Account {
-//     type Err = anyhow::Error;
-//     fn from_str(s: &str) -> Result<Self, Self::Err> {
-//         Self::get(s)
-//     }
-// }

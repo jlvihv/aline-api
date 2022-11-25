@@ -2,19 +2,14 @@ use axum::{
     extract::{Path, Query},
     http::StatusCode,
     response::IntoResponse,
-    Extension, Json,
+    Json,
 };
 use serde::{Deserialize, Serialize};
-use sqlx::{MySql, Pool};
 
 use crate::model::{
     account::Account,
     chain::{Chain, ChainEnum, NetworkEnum},
 };
-
-pub struct ApiContext {
-    pub db: Pool<MySql>,
-}
 
 #[derive(Deserialize, Serialize)]
 pub struct Response {
@@ -90,8 +85,14 @@ pub struct CreateApp {
 }
 
 pub async fn create_app(Json(payload): Json<CreateApp>) -> impl IntoResponse {
-    let Ok(mut user) = payload.account.parse::<Account>() else {
-        return (StatusCode::BAD_REQUEST, Json(Response::new("invaild parameters".to_string(), serde_json::Value::Null, None)));
+    let mut user = match Account::get(&payload.account).await {
+        Ok(user) => user,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(Response::new(e.to_string(), serde_json::Value::Null, None)),
+            )
+        }
     };
     let Ok(chain) = payload.chain.parse::<ChainEnum>() else {
         return (StatusCode::BAD_REQUEST, Json(Response::new("invaild parameters".to_string(), serde_json::Value::Null, None)));
@@ -99,7 +100,10 @@ pub async fn create_app(Json(payload): Json<CreateApp>) -> impl IntoResponse {
     let Ok(network) = payload.network.parse::<NetworkEnum>() else {
         return (StatusCode::BAD_REQUEST, Json(Response::new("invaild parameters".to_string(), serde_json::Value::Null, None)));
     };
-    let app = match user.create_app(&payload.name, &payload.description, chain, network) {
+    let app = match user
+        .create_app(&payload.name, &payload.description, chain, network)
+        .await
+    {
         Ok(app) => app,
         Err(e) => {
             return (
@@ -128,13 +132,13 @@ pub async fn get_apps(
     Path(account): Path<String>,
     Query(pagination): Query<Pagination>,
 ) -> impl IntoResponse {
-    let Ok(user) = account.parse::<Account>() else {
+    let Ok(user) = Account::get(&account).await else {
         return (StatusCode::BAD_REQUEST, Json(Response::new("account invalid".to_string(), serde_json::Value::Null, None)));
     };
     let size = pagination.size.unwrap_or(10);
     let page = pagination.page.unwrap_or(1);
 
-    let apps = match user.get_apps(page, size) {
+    let apps = match user.get_apps(page, size).await {
         Ok(apps) => apps,
         Err(e) => {
             return (
@@ -143,7 +147,7 @@ pub async fn get_apps(
             )
         }
     };
-    let total = match user.get_apps_total() {
+    let total = match user.get_apps_total().await {
         Ok(total) => total,
         Err(e) => {
             return (
@@ -168,14 +172,11 @@ pub async fn get_apps(
     }
 }
 
-pub async fn delete_app(
-    ctx: Extension<ApiContext>,
-    Path((account, app_id)): Path<(String, String)>,
-) -> impl IntoResponse {
-    let Ok(user) = account.parse::<Account>() else {
+pub async fn delete_app(Path((account, app_id)): Path<(String, String)>) -> impl IntoResponse {
+    let Ok(user) = Account::get(&account).await else {
         return (StatusCode::BAD_REQUEST, Json(Response::new("account invalid".to_string(), serde_json::Value::Null, None)));
     };
-    match user.delete_app(&app_id) {
+    match user.delete_app(&app_id).await {
         Ok(_) => (
             StatusCode::OK,
             Json(Response::new(

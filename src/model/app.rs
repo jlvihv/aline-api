@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use super::{
     chain::{self, ChainEnum, NetworkEnum},
-    code_examples,
+    code_examples, db,
 };
 
 #[derive(Deserialize, Serialize, Debug, Clone, Default)]
@@ -25,7 +25,7 @@ pub struct App {
 }
 
 impl App {
-    pub fn new(
+    pub async fn new(
         account: &str,
         id: u32,
         name: &str,
@@ -50,7 +50,7 @@ impl App {
             ..Default::default()
         };
         app.generate_key()?;
-        app.save()?;
+        app.save().await?;
         app.generate_code_example();
         Ok(app)
     }
@@ -58,7 +58,7 @@ impl App {
     fn generate_key(&mut self) -> Result<()> {
         self.api_key = format!(
             "{:x}",
-            md5::compute(format!("{}-{}-{}", self.account, self.id, self.created_at))
+            md5::compute(format!("{}-{}", self.account, self.id))
         );
         let ch = match self.chain.parse::<chain::ChainEnum>() {
             Ok(c) => c,
@@ -70,41 +70,28 @@ impl App {
         Ok(())
     }
 
-    pub fn init_db() -> Result<()> {
-        // let sql = std::env::var("SQL_CREATE_TABLE_APP")?;
-        // let mut conn = db::get_connection()?;
-        // if let Err(e) = conn.query_drop(sql) {
-        //     tracing::error!("Error creating table app: {}", e);
-        //     Err(anyhow!(e))
-        // } else {
-        //     Ok(())
-        // }
-        Ok(())
-    }
-
-    fn save(&self) -> Result<()> {
-        // let mut conn = db::get_connection()?;
-        // conn.exec_drop(
-        //     "INSERT INTO app(
-        //         account, id, name, description, chain, network, api_key, today_requests, total_requests, created_at, http_link, websocket_link
-        //     ) VALUES (
-        //         :account, :id, :name, :description, :chain, :network, :api_key, :today_requests, :total_requests, :created_at, :http_link, :websocket_link
-        //     );",
-        //     params! {
-        //         "account" => &self.account,
-        //         "id" => &self.id,
-        //         "name" => &self.name,
-        //         "description" => &self.description,
-        //         "chain" => &self.chain,
-        //         "network" => &self.network,
-        //         "api_key" => &self.api_key,
-        //         "today_requests" => &self.today_requests,
-        //         "total_requests" => &self.total_requests,
-        //         "created_at" => &self.created_at,
-        //         "http_link" => &self.http_link,
-        //         "websocket_link" => &self.websocket_link,
-        //     },
-        // )?;
+    async fn save(&self) -> Result<()> {
+        let pool = db::get_db_pool();
+        sqlx::query!(
+            "INSERT INTO app (
+                account, id, name, description, chain, network, api_key, today_requests, total_requests, created_at, http_link, websocket_link
+            ) VALUES (
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
+            );",
+            self.account,
+            self.id as i32,
+            self.name,
+            self.description,
+            self.chain,
+            self.network,
+            self.api_key,
+            self.today_requests as i32,
+            self.total_requests as i32,
+            self.created_at,
+            self.http_link,
+            self.websocket_link,
+        )
+        .execute(&pool).await?;
         Ok(())
     }
 
@@ -112,63 +99,32 @@ impl App {
         self.code_examples = code_examples::get_code_example(&self.http_link);
     }
 
-    pub fn get(account: &str, id: u32) -> Result<Self> {
-        // let mut conn = db::get_connection()?;
-        // conn.exec_first(
-        //     "SELECT * FROM app WHERE account = :account AND id = :id;",
-        //     params! {
-        //         "account" => account,
-        //         "id" => id,
-        //     },
-        // )?
-        // .map(|row| {
-        //     let (
-        //         account,
-        //         id,
-        //         name,
-        //         description,
-        //         chain,
-        //         network,
-        //         api_key,
-        //         today_requests,
-        //         total_requests,
-        //         created_at,
-        //         http_link,
-        //         websocket_link,
-        //     ): (
-        //         String,
-        //         u32,
-        //         String,
-        //         String,
-        //         String,
-        //         String,
-        //         String,
-        //         u32,
-        //         u32,
-        //         String,
-        //         String,
-        //         String,
-        //     ) = mysql::from_row(row);
-        //     let mut app = Self {
-        //         account,
-        //         id,
-        //         name,
-        //         description,
-        //         chain,
-        //         network,
-        //         api_key,
-        //         today_requests,
-        //         total_requests,
-        //         created_at,
-        //         http_link,
-        //         websocket_link,
-        //         ..Default::default()
-        //     };
-        //     app.generate_code_example();
-        //     Ok(app)
-        // })
-        // .unwrap_or(Err(anyhow!("App not found")))
+    pub async fn get(account: &str, id: u32) -> Result<Self> {
+        let pool = db::get_db_pool();
+        let app = sqlx::query!(
+            "SELECT * FROM app WHERE account = $1 AND id = $2;",
+            account,
+            id as i32,
+        )
+        .fetch_one(&pool)
+        .await?;
 
-        Ok(Self::default())
+        let app = Self {
+            account: app.account,
+            id: app.id as u32,
+            name: app.name,
+            description: app.description,
+            chain: app.chain,
+            network: app.network,
+            api_key: app.api_key,
+            today_requests: app.today_requests as u32,
+            total_requests: app.total_requests as u32,
+            created_at: app.created_at,
+            http_link: app.http_link,
+            websocket_link: app.websocket_link,
+            ..Default::default()
+        };
+
+        Ok(app)
     }
 }
