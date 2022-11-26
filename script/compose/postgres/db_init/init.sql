@@ -1,22 +1,20 @@
-CREATE TABLE IF NOT EXISTS account(
+CREATE TABLE IF NOT EXISTS accounts (
                 address varchar(255) NOT NULL,
                 created_at varchar(255) NOT NULL,
                 app_id_index int NOT NULL,
                 PRIMARY KEY (address)
             );
 
-CREATE TABLE IF NOT EXISTS app (
+CREATE TABLE IF NOT EXISTS apps (
+                account varchar(50) NOT NULL,
                 id int NOT NULL,
-                account varchar(255) NOT NULL,
-                name varchar(255) NOT NULL,
+                name varchar(50) NOT NULL,
                 description varchar(255) NOT NULL,
-                chain varchar(255) NOT NULL,
-                network varchar(255) NOT NULL,
-                api_key varchar(255) NOT NULL,
+                chain varchar(50) NOT NULL,
+                network varchar(50) NOT NULL,
+                api_key varchar(50) NOT NULL,
                 created_at varchar(255) NOT NULL,
-                today_requests int NOT NULL,
-                total_requests int NOT NULL,
-                http_link varchar(255) NOT NULL,
-                websocket_link varchar(255) NOT NULL,
+                http_link varchar(100) NOT NULL,
+                websocket_link varchar(100) NOT NULL,
                 PRIMARY KEY (account, id)
             );

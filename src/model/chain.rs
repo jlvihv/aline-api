@@ -78,7 +78,7 @@ pub struct Chain {
     pub name: String,
     pub http_address: String,
     pub websocket_address: String,
-    pub networks: Vec<Network>,
+    pub networks: Vec<NetworkEnum>,
 }
 
 impl Chain {
@@ -88,45 +88,47 @@ impl Chain {
                 name: chain.to_string(),
                 http_address: ETHEREUM_HTTP.to_string(),
                 websocket_address: ETHEREUM_WS.to_string(),
-                networks: vec![Network::new("Mainnet"), Network::new("Testnet")],
+                networks: vec![NetworkEnum::Mainnet, NetworkEnum::Testnet(Testnet::Ropsten)],
             },
             _ => Self {
                 name: chain.to_string(),
                 http_address: ETHEREUM_HTTP.to_string(),
                 websocket_address: ETHEREUM_WS.to_string(),
-                networks: vec![Network::new("Mainnet"), Network::new("Testnet")],
+                networks: vec![NetworkEnum::Mainnet, NetworkEnum::Testnet(Testnet::Ropsten)],
             },
         }
     }
     pub fn have_network(&self, network: &str) -> bool {
-        self.networks.iter().any(|n| n.name == network)
+        let network = match network.parse::<NetworkEnum>() {
+            Ok(n) => n,
+            Err(_) => return false,
+        };
+        self.networks.iter().any(|n| n == &network)
     }
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
 pub enum NetworkEnum {
     Mainnet,
-    Testnet,
+    Testnet(Testnet),
 }
 
-#[derive(Deserialize, Serialize)]
-pub struct Network {
-    pub name: String,
-}
-
-impl Network {
-    pub fn new(name: &str) -> Self {
-        Self {
-            name: name.to_string(),
-        }
-    }
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
+pub enum Testnet {
+    Ropsten,
+    Rinkeby,
+    Kovan,
+    Goerli,
 }
 
 impl fmt::Display for NetworkEnum {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             NetworkEnum::Mainnet => write!(f, "Mainnet"),
-            NetworkEnum::Testnet => write!(f, "Testnet"),
+            NetworkEnum::Testnet(Testnet::Ropsten) => write!(f, "Testnet - Ropsten"),
+            NetworkEnum::Testnet(Testnet::Rinkeby) => write!(f, "Testnet - Rinkeby"),
+            NetworkEnum::Testnet(Testnet::Kovan) => write!(f, "Testnet - Kovan"),
+            NetworkEnum::Testnet(Testnet::Goerli) => write!(f, "Testnet - Goerli"),
         }
     }
 }
@@ -135,9 +137,18 @@ impl FromStr for NetworkEnum {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().as_str() {
+        match s
+            .to_lowercase()
+            .chars()
+            .filter(|c| !c.is_whitespace())
+            .collect::<String>()
+            .as_str()
+        {
             "mainnet" => Ok(NetworkEnum::Mainnet),
-            "testnet" => Ok(NetworkEnum::Testnet),
+            "testnet-ropsten" => Ok(NetworkEnum::Testnet(Testnet::Ropsten)),
+            "testnet-rinkeby" => Ok(NetworkEnum::Testnet(Testnet::Rinkeby)),
+            "testnet-kovan" => Ok(NetworkEnum::Testnet(Testnet::Kovan)),
+            "testnet-goerli" => Ok(NetworkEnum::Testnet(Testnet::Goerli)),
             _ => Err(format!("{} is not a valid network", s)),
         }
     }

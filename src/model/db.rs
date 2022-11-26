@@ -15,6 +15,6 @@ pub async fn conn_db() -> Result<(), Pool<Postgres>> {
     })
 }
 
-pub fn get_db_pool() -> Pool<Postgres> {
+pub fn get_pool() -> Pool<Postgres> {
     POOL.get().expect("Database pool not initialized").clone()
 }

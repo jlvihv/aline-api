@@ -21,13 +21,13 @@ pub struct Response {
 
 #[derive(Deserialize, Serialize)]
 pub struct Pagination {
-    page: Option<u32>,
-    size: Option<u32>,
-    total: Option<u32>,
+    page: Option<i64>,
+    size: Option<i64>,
+    total: Option<i64>,
 }
 
 impl Pagination {
-    pub fn new(page: u32, size: u32, total: u32) -> Self {
+    pub fn new(page: i64, size: i64, total: i64) -> Self {
         Self {
             page: Some(page),
             size: Some(size),
