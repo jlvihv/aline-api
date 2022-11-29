@@ -28,9 +28,8 @@ impl Account {
     }
 
     pub async fn get(address: &str) -> Result<Self> {
-        let pool = db::get_pool();
         let user = sqlx::query!("SELECT * FROM accounts WHERE address = $1", address)
-            .fetch_one(&pool)
+            .fetch_one(&db::get_pool()?)
             .await
             .map(|a| Self {
                 address: a.address,
@@ -67,13 +66,12 @@ impl Account {
     }
 
     pub async fn delete_app(&self, id: &str) -> Result<()> {
-        let pool = db::get_pool();
         let n = sqlx::query!(
             "DELETE FROM apps WHERE account = $1 AND id = $2;",
             self.address,
             id.parse::<i32>()?
         )
-        .execute(&pool)
+        .execute(&db::get_pool()?)
         .await?;
         if 0 == n.rows_affected() {
             Err(anyhow!("App not found"))
@@ -83,7 +81,6 @@ impl Account {
     }
 
     async fn save(&self) -> Result<()> {
-        let pool = db::get_pool();
         sqlx::query!(
             "INSERT INTO accounts (
                 address, created_at, app_id_index
@@ -96,19 +93,17 @@ impl Account {
             self.created_at,
             self.app_id_index,
         )
-        .execute(&pool)
+        .execute(&db::get_pool()?)
         .await?;
         Ok(())
     }
 
     pub async fn get_apps_total(&self) -> Result<i64> {
-        let pool = db::get_pool();
-
         sqlx::query!(
             "SELECT COUNT(*) as total FROM apps WHERE account = $1",
             self.address
         )
-        .fetch_one(&pool)
+        .fetch_one(&db::get_pool()?)
         .await?
         .total
         .ok_or_else(|| anyhow!("Failed to get total"))
@@ -119,7 +114,6 @@ impl Account {
             return Err(anyhow!("Page must be greater than 0"));
         }
         let offset = (page - 1) * size;
-        let pool = db::get_pool();
         let apps = sqlx::query!(
             "SELECT
                 account, id, name, description, chain, network, api_key,
@@ -133,7 +127,7 @@ impl Account {
             size,
             offset,
         )
-        .fetch_all(&pool)
+        .fetch_all(&db::get_pool()?)
         .await?;
         apps.into_iter()
             .map(|a| {

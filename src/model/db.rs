@@ -1,3 +1,4 @@
+use anyhow::{anyhow, Result};
 use once_cell::sync::OnceCell;
 use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
 
@@ -15,6 +16,9 @@ pub async fn conn_db() -> Result<(), Pool<Postgres>> {
     })
 }
 
-pub fn get_pool() -> Pool<Postgres> {
-    POOL.get().expect("Database pool not initialized").clone()
+pub fn get_pool() -> Result<Pool<Postgres>> {
+    match POOL.get() {
+        Some(pool) => Ok(pool.clone()),
+        None => Err(anyhow!("Database connection pool not initialized")),
+    }
 }

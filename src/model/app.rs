@@ -52,13 +52,12 @@ impl App {
     }
 
     pub async fn get(account: &str, id: i32) -> Result<Self> {
-        let pool = db::get_pool();
         let app = sqlx::query!(
             "SELECT * FROM apps WHERE account = $1 AND id = $2;",
             account,
             id,
         )
-        .fetch_one(&pool)
+        .fetch_one(&db::get_pool()?)
         .await?;
 
         Ok(Self {
@@ -77,7 +76,6 @@ impl App {
     }
 
     async fn save(&self) -> Result<()> {
-        let pool = db::get_pool();
         sqlx::query!(
             "INSERT INTO apps (
                 account, id, name, description,
@@ -99,7 +97,7 @@ impl App {
             self.http_link,
             self.websocket_link,
         )
-        .execute(&pool)
+        .execute(&db::get_pool()?)
         .await?;
         Ok(())
     }

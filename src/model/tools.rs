@@ -1,6 +1,6 @@
-use std::{str::FromStr, fmt};
+use std::{fmt, str::FromStr};
 
-use serde::{Deserializer, Deserialize, de};
+use serde::{de, Deserialize, Deserializer};
 
 pub fn empty_string_as_none<'de, D, T>(de: D) -> Result<Option<T>, D::Error>
 where
