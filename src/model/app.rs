@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use super::{
     chain::{self, ChainEnum, NetworkEnum},
-    code_examples, db,
+    code_examples, db, log_parse,
 };
 
 #[derive(Deserialize, Serialize, Debug, Clone, Default)]
@@ -20,6 +20,8 @@ pub struct App {
     pub http_link: String,
     pub websocket_link: String,
     pub code_examples: code_examples::CodeExample,
+    pub total_requests_today: i32,
+    pub dayly_requests_7days: Vec<i32>,
 }
 
 impl App {
@@ -51,28 +53,73 @@ impl App {
         Ok(app)
     }
 
-    pub async fn get(account: &str, id: i32) -> Result<Self> {
-        let app = sqlx::query!(
-            "SELECT * FROM apps WHERE account = $1 AND id = $2;",
+    pub async fn delete(account: &str, id: i32) -> Result<()> {
+        let n = sqlx::query!(
+            "DELETE FROM apps WHERE account = $1 AND id = $2;",
             account,
-            id,
+            id
+        )
+        .execute(&db::get_pool()?)
+        .await?;
+        if 0 == n.rows_affected() {
+            Err(anyhow!("App not found"))
+        } else {
+            Ok(())
+        }
+    }
+
+    pub async fn get_total(account: &str) -> Result<i64> {
+        sqlx::query!(
+            "SELECT COUNT(*) as total FROM apps WHERE account = $1",
+            account
         )
         .fetch_one(&db::get_pool()?)
-        .await?;
+        .await?
+        .total
+        .ok_or_else(|| anyhow!("Failed to get total"))
+    }
 
-        Ok(Self {
-            account: app.account,
-            id: app.id,
-            name: app.name,
-            description: app.description,
-            chain: app.chain,
-            network: app.network,
-            api_key: app.api_key,
-            created_at: app.created_at,
-            http_link: app.http_link,
-            websocket_link: app.websocket_link,
-            ..Default::default()
-        })
+    pub async fn get_with_page(account: &str, page: i64, size: i64) -> Result<Vec<App>> {
+        if page <= 0 {
+            return Err(anyhow!("Page must be greater than 0"));
+        }
+        let offset = (page - 1) * size;
+        let apps = sqlx::query!(
+            "SELECT
+                account, id, name, description, chain, network, api_key,
+                created_at, http_link, websocket_link
+            FROM apps
+            WHERE
+                account = $1
+            LIMIT $2
+            OFFSET $3;",
+            account,
+            size,
+            offset,
+        )
+        .fetch_all(&db::get_pool()?)
+        .await?;
+        apps.into_iter()
+            .map(|a| {
+                let mut app = App {
+                    account: a.account,
+                    id: a.id,
+                    name: a.name,
+                    description: a.description,
+                    chain: a.chain,
+                    network: a.network,
+                    api_key: a.api_key,
+                    created_at: a.created_at,
+                    http_link: a.http_link,
+                    websocket_link: a.websocket_link,
+                    ..Default::default()
+                };
+                app.generate_code_example();
+                app.get_total_requests_today()?;
+                app.get_dayly_requests_7days()?;
+                Ok(app)
+            })
+            .collect()
     }
 
     async fn save(&self) -> Result<()> {
@@ -119,5 +166,21 @@ impl App {
 
     pub fn generate_code_example(&mut self) {
         self.code_examples = code_examples::get_code_example(&self.http_link);
+    }
+
+    fn get_total_requests_today(&mut self) -> Result<()> {
+        let log = log_parse::QueryLog::query_today(&self.api_key)?;
+        self.total_requests_today = log.result.len() as i32;
+        Ok(())
+    }
+
+    fn get_dayly_requests_7days(&mut self) -> Result<()> {
+        let logs = log_parse::QueryLog::query_7days(&self.api_key)?;
+        let mut result = Vec::new();
+        logs.iter().for_each(|log| {
+            result.push(log.result.len() as i32);
+        });
+        self.dayly_requests_7days = result;
+        Ok(())
     }
 }

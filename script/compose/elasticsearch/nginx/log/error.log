@@ -1,5 +1,0 @@
-2022/11/29 05:55:21 [emerg] 1#1: open() "/etc/nginx/nginx.conf" failed (2: No such file or directory)
-2022/11/29 05:57:08 [emerg] 1#1: open() "/etc/nginx/nginx.conf" failed (2: No such file or directory)
-2022/11/29 06:00:55 [emerg] 1#1: open() "/etc/nginx/nginx.conf" failed (2: No such file or directory)
-2022/11/29 06:02:10 [emerg] 1#1: open() "/etc/nginx/nginx.conf" failed (2: No such file or directory)
-2022/11/29 06:31:31 [emerg] 1#1: open() "/etc/nginx/nginx.conf" failed (2: No such file or directory)
