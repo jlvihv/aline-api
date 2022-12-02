@@ -180,6 +180,7 @@ impl App {
         logs.iter().for_each(|log| {
             result.push(log.result.len() as i32);
         });
+        result.reverse();
         self.dayly_requests_7days = result;
         Ok(())
     }
