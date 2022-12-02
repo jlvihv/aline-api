@@ -2,8 +2,8 @@ use std::{fmt, str::FromStr};
 
 use serde::{Deserialize, Serialize};
 
-const ETHEREUM_HTTP: &str = "http://localhost/http_node";
-const ETHEREUM_WS: &str = "ws://localhost/ws_node";
+const ETHEREUM_HTTP: &str = "http://175.24.179.2:9912";
+const ETHEREUM_WS: &str = "http://175.24.179.2:9912";
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub enum ChainEnum {

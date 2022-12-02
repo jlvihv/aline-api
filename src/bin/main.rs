@@ -23,11 +23,16 @@ async fn main() {
         .route("/app", post(api::create_app))
         .route("/app/:account/:app_id", delete(api::delete_app));
 
-    let addr = SocketAddr::from(([0, 0, 0, 0], 9911));
+    let addr = SocketAddr::from(([0, 0, 0, 0], get_listen_port()));
     tracing::info!("listening on {}", addr);
 
     axum::Server::bind(&addr)
         .serve(app.into_make_service())
         .await
         .unwrap();
+}
+
+fn get_listen_port() -> u16 {
+    let port = std::env::var("LISTEN_PORT").expect("LISTEN_PORT must be set");
+    port.parse().expect("LISTEN_PORT must be a number")
 }
