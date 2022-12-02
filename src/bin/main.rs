@@ -2,7 +2,10 @@ use axum::{
     routing::{delete, get, post},
     Router,
 };
-use node_service::{api, model::db};
+use node_service::{
+    api,
+    model::{db, log_parse},
+};
 use std::net::SocketAddr;
 
 #[tokio::main]
@@ -10,7 +13,8 @@ async fn main() {
     dotenvy::dotenv().ok();
     tracing_subscriber::fmt::init();
 
-    db::conn_db().await.expect("Failed to connect to database");
+    db::init().await.expect("Failed to connect to database");
+    log_parse::cache::init().await.expect("Failed to cache log");
 
     let app = Router::new()
         .route("/chains", get(api::chains))

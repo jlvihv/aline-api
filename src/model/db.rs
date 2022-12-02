@@ -4,7 +4,7 @@ use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
 
 static POOL: OnceCell<Pool<Postgres>> = OnceCell::new();
 
-pub async fn conn_db() -> Result<(), Pool<Postgres>> {
+pub async fn init() -> Result<(), Pool<Postgres>> {
     let url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     tracing::info!("Connecting to database: {}", url);
     POOL.set({
