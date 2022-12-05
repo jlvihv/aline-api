@@ -49,7 +49,7 @@ impl Log {
         let log = match serde_json::from_str(line) {
             Ok(log) => log,
             Err(e) => {
-                println!("line: {}", line);
+                tracing::error!("parse log failed: {}, line: {}", e, line);
                 return Err(anyhow::anyhow!(e));
             }
         };
