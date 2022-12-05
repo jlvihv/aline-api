@@ -20,6 +20,7 @@ text-template = "0.1.0"
 thiserror = "1.0.37"
 tokio = { version = "1.22.0", features = ["full"] }
 tracing = "0.1.37"
+tracing-appender = "0.2.2"
 tracing-subscriber = "0.3.16"
 
 [[bin]]

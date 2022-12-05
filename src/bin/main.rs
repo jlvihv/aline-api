@@ -10,12 +10,7 @@ use std::net::SocketAddr;
 
 #[tokio::main]
 async fn main() {
-    dotenvy::dotenv().ok();
-    tracing_subscriber::fmt::init();
-
-    db::init().await.expect("Failed to connect to database");
-    log_parse::cache::init().await.expect("Failed to cache log");
-
+    init().await;
     let app = Router::new()
         .route("/chains", get(api::chains))
         .route("/networks/:chain", get(api::networks))
@@ -35,4 +30,19 @@ async fn main() {
 fn get_listen_port() -> u16 {
     let port = std::env::var("LISTEN_PORT").expect("LISTEN_PORT must be set");
     port.parse().expect("LISTEN_PORT must be a number")
+}
+
+async fn init() {
+    dotenvy::dotenv().ok();
+
+    let file_appender = tracing_appender::rolling::daily("log", "node-service.log");
+    let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
+    tracing_subscriber::fmt()
+        .with_writer(non_blocking)
+        .with_ansi(false)
+        .init();
+    tracing::info!("log init finished");
+
+    db::init().await.expect("Failed to connect to database");
+    log_parse::cache::init().await.expect("Failed to cache log");
 }
