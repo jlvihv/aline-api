@@ -83,7 +83,7 @@ mod test {
     #[test]
     fn test_log_parse_file() {
         let logs = Log::parse_file("src/model/test_data/access.log").unwrap();
-        assert_eq!(logs.len(), 6);
+        assert_eq!(logs.len(), 8);
     }
 
     async fn init_log_cache() {
@@ -95,7 +95,7 @@ mod test {
         std::env::set_var("PARSE_LOG_FILE", "src/model/test_data/access.log");
         init_log_cache().await;
         let query_log = QueryLog::query("/").await.unwrap();
-        assert_eq!(query_log.result.len(), 6);
+        assert_eq!(query_log.result.len(), 8);
         let query_log = QueryLog::query("ico").await.unwrap();
         assert_eq!(query_log.result.len(), 4);
     }

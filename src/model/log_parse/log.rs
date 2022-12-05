@@ -46,7 +46,13 @@ pub struct Log {
 
 impl Log {
     pub fn new(line: &str) -> Result<Self> {
-        let log = serde_json::from_str(line)?;
+        let log = match serde_json::from_str(line) {
+            Ok(log) => log,
+            Err(e) => {
+                println!("line: {}", line);
+                return Err(anyhow::anyhow!(e));
+            }
+        };
         Ok(log)
     }
 
@@ -56,7 +62,8 @@ impl Log {
         let mut logs = Vec::new();
         for line in reader.lines() {
             let line = line?;
-            if line.is_empty() {
+            // 忽略空行和 '\x03\x00' 的机器人请求，因为他们会导致 serde 解析失败
+            if line.is_empty() || line.contains(r#"\x03\x00"#) {
                 continue;
             }
             let log = Log::new(&line)?;
