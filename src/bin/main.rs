@@ -11,20 +11,7 @@ use std::net::SocketAddr;
 #[tokio::main]
 async fn main() {
     init().await;
-    let app = Router::new()
-        .route("/chains", get(api::chains))
-        .route("/networks/:chain", get(api::networks))
-        .route("/apps/:account", get(api::get_apps))
-        .route("/app", post(api::create_app))
-        .route("/app/:account/:app_id", delete(api::delete_app));
-
-    let addr = SocketAddr::from(([0, 0, 0, 0], get_listen_port()));
-    tracing::info!("listening on {}", addr);
-
-    axum::Server::bind(&addr)
-        .serve(app.into_make_service())
-        .await
-        .unwrap();
+    serve().await;
 }
 
 fn get_listen_port() -> u16 {
@@ -40,9 +27,28 @@ async fn init() {
     tracing_subscriber::fmt()
         .with_writer(non_blocking)
         .with_ansi(false)
+        .with_file(true)
+        .with_line_number(true)
         .init();
     tracing::info!("log init finished");
 
     db::init().await.expect("Failed to connect to database");
     log_parse::cache::init().await.expect("Failed to cache log");
+}
+
+async fn serve() {
+    let addr = SocketAddr::from(([0, 0, 0, 0], get_listen_port()));
+    println!("listening on {}", addr);
+
+    let app = Router::new()
+        .route("/chains", get(api::chains))
+        .route("/networks/:chain", get(api::networks))
+        .route("/apps/:account", get(api::get_apps))
+        .route("/app", post(api::create_app))
+        .route("/app/:account/:app_id", delete(api::delete_app));
+
+    axum::Server::bind(&addr)
+        .serve(app.into_make_service())
+        .await
+        .unwrap();
 }
