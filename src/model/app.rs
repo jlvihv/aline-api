@@ -169,13 +169,25 @@ impl App {
     }
 
     async fn get_total_requests_today(&mut self) -> Result<()> {
-        let log = log_parse::query::QueryLog::query_today(&self.api_key).await?;
+        let log = match log_parse::query::QueryLog::query_today(&self.api_key).await {
+            Ok(l) => l,
+            Err(_) => {
+                tracing::error!("Failed to get total requests today");
+                return Ok(());
+            }
+        };
         self.total_requests_today = log.result.len() as i32;
         Ok(())
     }
 
     async fn get_dayly_requests_7days(&mut self) -> Result<()> {
-        let logs = log_parse::query::QueryLog::query_7days(&self.api_key).await?;
+        let logs = match log_parse::query::QueryLog::query_7days(&self.api_key).await {
+            Ok(l) => l,
+            Err(_) => {
+                tracing::error!("Failed to get dayly requests 7days");
+                return Ok(());
+            }
+        };
         let mut result = Vec::new();
         logs.iter().for_each(|log| {
             result.push(log.result.len() as i32);
