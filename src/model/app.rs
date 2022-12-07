@@ -91,6 +91,8 @@ impl App {
             FROM apps
             WHERE
                 account = $1
+            ORDER BY
+                id DESC
             LIMIT $2
             OFFSET $3;",
             account,
