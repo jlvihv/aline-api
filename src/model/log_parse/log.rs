@@ -62,8 +62,8 @@ impl Log {
         let mut logs = Vec::new();
         for line in reader.lines() {
             let line = line?;
-            // 忽略空行和 '\x03\x00' 的机器人请求，因为他们会导致 serde 解析失败
-            if line.is_empty() || line.contains(r#"\x03\x00"#) {
+            // 忽略空行和 '\x' 开头的机器人请求，因为他们会导致 serde 解析失败
+            if line.is_empty() || line.contains(r#" "request": "\x"#) {
                 continue;
             }
             let log = Log::new(&line)?;
