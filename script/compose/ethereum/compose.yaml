@@ -1,6 +1,7 @@
 version: "3"
 services:
   ethereum:
+    container_name: ethereum
     image: ethereum/client-go
     ports:
       - "8545:8545"
@@ -15,5 +16,6 @@ services:
       - "--ws"
       - "--ws.addr"
       - "0.0.0.0"
+      - "--http.vhosts=*"
 volumes:
   ethereum-data: {}
