@@ -2,9 +2,6 @@ use std::{fmt, str::FromStr};
 
 use serde::{Deserialize, Serialize};
 
-const ETHEREUM_HTTP: &str = "http://175.24.179.2:9912";
-const ETHEREUM_WS: &str = "http://175.24.179.2:9912";
-
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub enum ChainEnum {
     Ethereum,
@@ -86,14 +83,14 @@ impl Chain {
         match chain {
             ChainEnum::Ethereum => Self {
                 name: chain.to_string(),
-                http_address: ETHEREUM_HTTP.to_string(),
-                websocket_address: ETHEREUM_WS.to_string(),
+                http_address: get_chain_link(ChainEnum::Ethereum).0,
+                websocket_address: get_chain_link(ChainEnum::Ethereum).1,
                 networks: vec![NetworkEnum::Mainnet, NetworkEnum::Testnet(Testnet::Ropsten)],
             },
             _ => Self {
                 name: chain.to_string(),
-                http_address: ETHEREUM_HTTP.to_string(),
-                websocket_address: ETHEREUM_WS.to_string(),
+                http_address: get_chain_link(ChainEnum::Ethereum).0,
+                websocket_address: get_chain_link(ChainEnum::Ethereum).1,
                 networks: vec![NetworkEnum::Mainnet, NetworkEnum::Testnet(Testnet::Ropsten)],
             },
         }
@@ -150,6 +147,21 @@ impl FromStr for NetworkEnum {
             "testnet-kovan" => Ok(NetworkEnum::Testnet(Testnet::Kovan)),
             "testnet-goerli" => Ok(NetworkEnum::Testnet(Testnet::Goerli)),
             _ => Err(format!("{} is not a valid network", s)),
+        }
+    }
+}
+
+fn get_chain_link(chain: ChainEnum) -> (String, String) {
+    match chain {
+        ChainEnum::Ethereum => {
+            let http_link = std::env::var("ETHEREUM_HTTP").unwrap_or_else(|_| "unset".to_string());
+            let ws_link = std::env::var("ETHEREUM_WS").unwrap_or_else(|_| "unset".to_string());
+            (http_link, ws_link)
+        }
+        _ => {
+            let http_link = std::env::var("CHAIN_HTTP").unwrap_or_else(|_| "unset".to_string());
+            let ws_link = std::env::var("CHAIN_WS").unwrap_or_else(|_| "unset".to_string());
+            (http_link, ws_link)
         }
     }
 }
