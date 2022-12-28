@@ -49,7 +49,7 @@ impl App {
         };
         app.generate_key()?;
         app.save().await?;
-        app.generate_code_example();
+        app.generate_code_example(chain);
         Ok(app)
     }
 
@@ -108,7 +108,7 @@ impl App {
                 id: a.id,
                 name: a.name,
                 description: a.description,
-                chain: a.chain,
+                chain: a.chain.clone(),
                 network: a.network,
                 api_key: a.api_key,
                 created_at: a.created_at,
@@ -116,7 +116,7 @@ impl App {
                 websocket_link: a.websocket_link,
                 ..Default::default()
             };
-            app.generate_code_example();
+            app.generate_code_example(a.chain.parse().unwrap_or(ChainEnum::Ethereum));
             app.get_total_requests_today().await?;
             app.get_dayly_requests_7days().await?;
             result.push(app);
@@ -166,8 +166,8 @@ impl App {
         Ok(())
     }
 
-    pub fn generate_code_example(&mut self) {
-        self.code_examples = code_examples::get_code_example(&self.http_link);
+    pub fn generate_code_example(&mut self, chain_type: ChainEnum) {
+        self.code_examples = code_examples::get_code_example(&self.http_link, chain_type);
     }
 
     async fn get_total_requests_today(&mut self) -> Result<()> {
