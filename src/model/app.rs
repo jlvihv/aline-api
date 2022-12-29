@@ -4,7 +4,8 @@ use serde::{Deserialize, Serialize};
 
 use super::{
     chain::{self, ChainEnum, NetworkEnum},
-    code_examples, db, log_parse,
+    code_examples::examples,
+    db, log_parse,
 };
 
 #[derive(Deserialize, Serialize, Debug, Clone, Default)]
@@ -19,7 +20,7 @@ pub struct App {
     pub created_at: String,
     pub http_link: String,
     pub websocket_link: String,
-    pub code_examples: code_examples::CodeExample,
+    pub code_examples: examples::CodeExample,
     pub total_requests_today: i32,
     pub dayly_requests_7days: Vec<i32>,
 }
@@ -167,7 +168,7 @@ impl App {
     }
 
     pub fn generate_code_example(&mut self, chain_type: ChainEnum) {
-        self.code_examples = code_examples::get_code_example(&self.http_link, chain_type);
+        self.code_examples = examples::get_code_example(&self.http_link, chain_type);
     }
 
     async fn get_total_requests_today(&mut self) -> Result<()> {

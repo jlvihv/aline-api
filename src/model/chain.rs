@@ -80,19 +80,11 @@ pub struct Chain {
 
 impl Chain {
     pub fn new(chain: ChainEnum) -> Self {
-        match chain {
-            ChainEnum::Ethereum => Self {
-                name: chain.to_string(),
-                http_address: get_chain_link(ChainEnum::Ethereum).0,
-                websocket_address: get_chain_link(ChainEnum::Ethereum).1,
-                networks: vec![NetworkEnum::Mainnet, NetworkEnum::Testnet(Testnet::Ropsten)],
-            },
-            _ => Self {
-                name: chain.to_string(),
-                http_address: get_chain_link(ChainEnum::Ethereum).0,
-                websocket_address: get_chain_link(ChainEnum::Ethereum).1,
-                networks: vec![NetworkEnum::Mainnet, NetworkEnum::Testnet(Testnet::Ropsten)],
-            },
+        Self {
+            name: chain.to_string(),
+            http_address: get_chain_link(&chain).0,
+            websocket_address: get_chain_link(&chain).1,
+            networks: vec![NetworkEnum::Mainnet, NetworkEnum::Testnet(Testnet::Ropsten)],
         }
     }
     pub fn have_network(&self, network: &str) -> bool {
@@ -151,11 +143,26 @@ impl FromStr for NetworkEnum {
     }
 }
 
-fn get_chain_link(chain: ChainEnum) -> (String, String) {
+fn get_chain_link(chain: &ChainEnum) -> (String, String) {
     match chain {
         ChainEnum::Ethereum => {
             let http_link = std::env::var("ETHEREUM_HTTP").unwrap_or_else(|_| "unset".to_string());
             let ws_link = std::env::var("ETHEREUM_WS").unwrap_or_else(|_| "unset".to_string());
+            (http_link, ws_link)
+        }
+        ChainEnum::Sui => {
+            let http_link = std::env::var("SUI_HTTP").unwrap_or_else(|_| "unset".to_string());
+            let ws_link = std::env::var("SUI_WS").unwrap_or_else(|_| "unset".to_string());
+            (http_link, ws_link)
+        }
+        ChainEnum::Avalanche => {
+            let http_link = std::env::var("AVALANCHE_HTTP").unwrap_or_else(|_| "unset".to_string());
+            let ws_link = std::env::var("AVALANCHE_WS").unwrap_or_else(|_| "unset".to_string());
+            (http_link, ws_link)
+        }
+        ChainEnum::Optimism => {
+            let http_link = std::env::var("OPTIMISM_HTTP").unwrap_or_else(|_| "unset".to_string());
+            let ws_link = std::env::var("OPTIMISM_WS").unwrap_or_else(|_| "unset".to_string());
             (http_link, ws_link)
         }
         _ => {
