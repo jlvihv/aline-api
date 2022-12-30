@@ -76,6 +76,7 @@ pub struct Chain {
     pub http_address: String,
     pub websocket_address: String,
     pub networks: Vec<NetworkEnum>,
+    pub is_available: bool,
 }
 
 impl Chain {
@@ -85,6 +86,8 @@ impl Chain {
             http_address: get_chain_link(&chain).0,
             websocket_address: get_chain_link(&chain).1,
             networks: vec![NetworkEnum::Mainnet, NetworkEnum::Testnet(Testnet::Ropsten)],
+            is_available: get_chain_link(&chain).0 != "Not supported yet"
+                || get_chain_link(&chain).1 != "Not supported yet",
         }
     }
     pub fn have_network(&self, network: &str) -> bool {
@@ -143,32 +146,11 @@ impl FromStr for NetworkEnum {
     }
 }
 
+/// 返回链的 http 和 websocket 地址
 fn get_chain_link(chain: &ChainEnum) -> (String, String) {
-    match chain {
-        ChainEnum::Ethereum => {
-            let http_link = std::env::var("ETHEREUM_HTTP").unwrap_or_else(|_| "unset".to_string());
-            let ws_link = std::env::var("ETHEREUM_WS").unwrap_or_else(|_| "unset".to_string());
-            (http_link, ws_link)
-        }
-        ChainEnum::Sui => {
-            let http_link = std::env::var("SUI_HTTP").unwrap_or_else(|_| "unset".to_string());
-            let ws_link = std::env::var("SUI_WS").unwrap_or_else(|_| "unset".to_string());
-            (http_link, ws_link)
-        }
-        ChainEnum::Avalanche => {
-            let http_link = std::env::var("AVALANCHE_HTTP").unwrap_or_else(|_| "unset".to_string());
-            let ws_link = std::env::var("AVALANCHE_WS").unwrap_or_else(|_| "unset".to_string());
-            (http_link, ws_link)
-        }
-        ChainEnum::Optimism => {
-            let http_link = std::env::var("OPTIMISM_HTTP").unwrap_or_else(|_| "unset".to_string());
-            let ws_link = std::env::var("OPTIMISM_WS").unwrap_or_else(|_| "unset".to_string());
-            (http_link, ws_link)
-        }
-        _ => {
-            let http_link = std::env::var("CHAIN_HTTP").unwrap_or_else(|_| "unset".to_string());
-            let ws_link = std::env::var("CHAIN_WS").unwrap_or_else(|_| "unset".to_string());
-            (http_link, ws_link)
-        }
-    }
+    let chain_http = format!("{}_HTTP", chain.to_string().to_uppercase());
+    let chain_ws = format!("{}_WS", chain.to_string().to_uppercase());
+    let http_link = std::env::var(chain_http).unwrap_or_else(|_| "Not supported yet".to_string());
+    let ws_link = std::env::var(chain_ws).unwrap_or_else(|_| "Not supported yet".to_string());
+    (http_link, ws_link)
 }
