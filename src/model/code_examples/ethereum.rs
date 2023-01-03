@@ -24,12 +24,8 @@ pub const ETH_PYTHON_EXAMPLE: &str = r#"from web3 import Web3
 chain_url = "${link}"
 w3 = Web3(Web3.HTTPProvider(chain_url))
 
-# Print if web3 is successfully connected
-print(w3.isConnected())
-
 # Get the latest block number
-latest_block = w3.eth.block_number
-print(latest_block)
+print(w3.eth.block_number)
 
 "#;
 
