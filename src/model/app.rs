@@ -153,9 +153,10 @@ impl App {
     }
 
     fn generate_key(&mut self) -> Result<()> {
+        let uid = uuid::Uuid::new_v4();
         self.api_key = format!(
             "{:x}",
-            md5::compute(format!("{}-{}", self.account, self.id))
+            md5::compute(format!("{}-{}-{}", self.account, self.id, uid))
         );
         let chain = match self.chain.parse::<chain::ChainEnum>() {
             Ok(c) => c,
