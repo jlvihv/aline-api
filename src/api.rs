@@ -1,8 +1,11 @@
+use std::net::SocketAddr;
+
 use axum::{
     extract::{Path, Query},
     http::StatusCode,
     response::IntoResponse,
-    Json,
+    routing::{delete, get, post},
+    Json, Router,
 };
 use serde::{Deserialize, Serialize};
 
@@ -10,6 +13,29 @@ use crate::model::{
     account::Account,
     chain::{Chain, ChainEnum, NetworkEnum},
 };
+
+fn get_listen_port() -> u16 {
+    let port = std::env::var("LISTEN_PORT").expect("LISTEN_PORT must be set");
+    port.parse().expect("LISTEN_PORT must be a number")
+}
+
+pub async fn serve() {
+    let addr = SocketAddr::from(([0, 0, 0, 0], get_listen_port()));
+    println!("listening on {}", addr);
+    tracing::info!("listening on {}", addr);
+
+    let app = Router::new()
+        .route("/chains", get(chains))
+        .route("/networks/:chain", get(networks))
+        .route("/apps/:account", get(get_apps))
+        .route("/app", post(create_app))
+        .route("/app/:account/:app_id", delete(delete_app));
+
+    axum::Server::bind(&addr)
+        .serve(app.into_make_service())
+        .await
+        .unwrap();
+}
 
 #[derive(Deserialize, Serialize)]
 pub struct Response {
