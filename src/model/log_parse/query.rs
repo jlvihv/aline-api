@@ -24,6 +24,20 @@ impl QueryLog {
         })
     }
 
+    pub async fn query_status_200(query: &str) -> Result<Self> {
+        let cache = LogCache::get().await?;
+        let result = cache
+            .data
+            .into_iter()
+            .filter(|log| log.request_uri.contains(query) && log.status == "200")
+            .collect();
+        Ok(Self {
+            date: "all".to_string(),
+            query: query.to_string(),
+            result,
+        })
+    }
+
     pub async fn query_today(query: &str) -> Result<Self> {
         let today = Utc::now().format("%d/%b/%Y").to_string();
         Self::query_with_date(query, &today).await
@@ -44,7 +58,11 @@ impl QueryLog {
         let result: Vec<Log> = cache
             .data
             .into_iter()
-            .filter(|log| log.request_uri.contains(query) && log.time_local.contains(date))
+            .filter(|log| {
+                log.request_uri.contains(query)
+                    && log.time_local.contains(date)
+                    && log.status == "200"
+            })
             .collect();
         Ok(QueryLog {
             date: date.to_string(),
@@ -98,6 +116,16 @@ mod test {
         assert_eq!(query_log.result.len(), 8);
         let query_log = QueryLog::query("ico").await.unwrap();
         assert_eq!(query_log.result.len(), 4);
+    }
+
+    #[tokio::test]
+    async fn test_query_log_with_status_200() {
+        std::env::set_var("PARSE_LOG_FILE", "src/model/test_data/access.log");
+        init_log_cache().await;
+        let query_log = QueryLog::query_status_200("/").await.unwrap();
+        assert_eq!(query_log.result.len(), 3);
+        let query_log = QueryLog::query_status_200("ico").await.unwrap();
+        assert_eq!(query_log.result.len(), 0);
     }
 
     #[tokio::test]

@@ -4,6 +4,7 @@ use std::str::FromStr;
 use super::super::chain::ChainEnum;
 use super::aptos::get_aptos_examples;
 use super::avalanche::get_avalanche_examples;
+use super::bsc::get_bsc_examples;
 use super::ethereum::get_ethereum_examples;
 use super::near::get_near_examples;
 use super::optimism::get_optimism_examples;
@@ -49,6 +50,7 @@ pub fn get_code_example(link: &str, chain_type: ChainEnum) -> CodeExample {
         ChainEnum::Aptos => get_aptos_examples(link),
         ChainEnum::Polygon => get_polygon_examples(link),
         ChainEnum::StarkWare => get_starkware_examples(link),
+        ChainEnum::Bsc => get_bsc_examples(link),
         _ => get_ethereum_examples(link),
     }
 }

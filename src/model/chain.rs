@@ -81,13 +81,23 @@ pub struct Chain {
 
 impl Chain {
     pub fn new(chain: ChainEnum) -> Self {
-        Self {
-            name: chain.to_string(),
-            http_address: get_chain_link(&chain).0,
-            websocket_address: get_chain_link(&chain).1,
-            networks: vec![NetworkEnum::Mainnet, NetworkEnum::Testnet(Testnet::Ropsten)],
-            is_available: get_chain_link(&chain).0 != "Not supported yet"
-                || get_chain_link(&chain).1 != "Not supported yet",
+        match chain {
+            ChainEnum::Ethereum => Self {
+                name: chain.to_string(),
+                http_address: get_chain_link(&chain).0,
+                websocket_address: get_chain_link(&chain).1,
+                networks: vec![NetworkEnum::Mainnet, NetworkEnum::Testnet(Testnet::Goerli)],
+                is_available: get_chain_link(&chain).0 != "Not supported yet"
+                    || get_chain_link(&chain).1 != "Not supported yet",
+            },
+            _ => Self {
+                name: chain.to_string(),
+                http_address: get_chain_link(&chain).0,
+                websocket_address: get_chain_link(&chain).1,
+                networks: vec![NetworkEnum::Mainnet],
+                is_available: get_chain_link(&chain).0 != "Not supported yet"
+                    || get_chain_link(&chain).1 != "Not supported yet",
+            },
         }
     }
     pub fn have_network(&self, network: &str) -> bool {

@@ -8,3 +8,4 @@ mod starkware;
 mod optimism;
 mod avalanche;
 mod aptos;
+pub mod bsc;
