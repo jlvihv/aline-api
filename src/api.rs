@@ -121,10 +121,10 @@ pub async fn create_app(Json(payload): Json<CreateApp>) -> impl IntoResponse {
         }
     };
     let Ok(chain) = payload.chain.parse::<ChainEnum>() else {
-        return (StatusCode::BAD_REQUEST, Json(Response::new("invaild parameters".to_string(), serde_json::Value::Null, None)));
+        return (StatusCode::BAD_REQUEST, Json(Response::new("chain invaild".to_string(), serde_json::Value::Null, None)));
     };
     let Ok(network) = payload.network.parse::<NetworkEnum>() else {
-        return (StatusCode::BAD_REQUEST, Json(Response::new("invaild parameters".to_string(), serde_json::Value::Null, None)));
+        return (StatusCode::BAD_REQUEST, Json(Response::new("network invaild".to_string(), serde_json::Value::Null, None)));
     };
     let app = match user
         .create_app(&payload.name, &payload.description, chain, network)
@@ -133,7 +133,7 @@ pub async fn create_app(Json(payload): Json<CreateApp>) -> impl IntoResponse {
         Ok(app) => app,
         Err(e) => {
             return (
-                StatusCode::INTERNAL_SERVER_ERROR,
+                StatusCode::BAD_REQUEST,
                 Json(Response::new(
                     format!("create app failed, {}", e),
                     serde_json::Value::Null,

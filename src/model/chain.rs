@@ -61,7 +61,7 @@ impl FromStr for ChainEnum {
             "avalanche" => Ok(ChainEnum::Avalanche),
             "optimism" => Ok(ChainEnum::Optimism),
             "zksync" => Ok(ChainEnum::ZkSync),
-            "startware" => Ok(ChainEnum::StarkWare),
+            "starkware" => Ok(ChainEnum::StarkWare),
             "near" => Ok(ChainEnum::Near),
             "aptos" => Ok(ChainEnum::Aptos),
             "sui" => Ok(ChainEnum::Sui),
