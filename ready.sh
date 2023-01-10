@@ -1,1 +1,0 @@
-docker compose -f compose/node-services/compose.yaml -f compose/ethereum/compose.yaml up -d

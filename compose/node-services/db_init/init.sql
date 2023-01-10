@@ -33,6 +33,12 @@ VALUES (
         'http://34.232.105.81:9912/ethereum-ws'
     ),
     (
+        'ethereum',
+        'testnet-goerli',
+        'http://34.232.105.81:9912/ethereum-goerli',
+        'http://34.232.105.81:9912/ethereum-ws-goerli'
+    ),
+    (
         'sui',
         'mainnet',
         'http://34.232.105.81:9912/sui',
