@@ -1,0 +1,1 @@
+UPDATE chains SET websocket_address = 'wss://rpc.polkadot.io' WHERE id = 1;

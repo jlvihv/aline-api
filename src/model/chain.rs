@@ -1,6 +1,10 @@
+use anyhow::anyhow;
+use anyhow::Result;
 use std::{fmt, str::FromStr};
 
 use serde::{Deserialize, Serialize};
+
+use super::db;
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub enum ChainEnum {
@@ -17,19 +21,18 @@ pub enum ChainEnum {
 }
 
 impl ChainEnum {
-    pub fn get_all() -> Vec<Chain> {
-        vec![
-            Chain::new(ChainEnum::Ethereum),
-            Chain::new(ChainEnum::Bsc),
-            Chain::new(ChainEnum::Polygon),
-            Chain::new(ChainEnum::Avalanche),
-            Chain::new(ChainEnum::Optimism),
-            Chain::new(ChainEnum::ZkSync),
-            Chain::new(ChainEnum::StarkWare),
-            Chain::new(ChainEnum::Near),
-            Chain::new(ChainEnum::Aptos),
-            Chain::new(ChainEnum::Sui),
-        ]
+    pub async fn get_all() -> Result<Vec<Chain>> {
+        let mut result: Vec<Chain> = vec![];
+        result.push(Chain::get(ChainEnum::Ethereum).await?);
+        result.push(Chain::get(ChainEnum::Bsc).await?);
+        result.push(Chain::get(ChainEnum::Polygon).await?);
+        result.push(Chain::get(ChainEnum::Avalanche).await?);
+        result.push(Chain::get(ChainEnum::Optimism).await?);
+        result.push(Chain::get(ChainEnum::StarkWare).await?);
+        result.push(Chain::get(ChainEnum::Near).await?);
+        result.push(Chain::get(ChainEnum::Aptos).await?);
+        result.push(Chain::get(ChainEnum::Sui).await?);
+        Ok(result)
     }
 }
 
@@ -73,39 +76,72 @@ impl FromStr for ChainEnum {
 #[derive(Deserialize, Serialize)]
 pub struct Chain {
     pub name: String,
-    pub http_address: String,
-    pub websocket_address: String,
-    pub networks: Vec<NetworkEnum>,
-    pub is_available: bool,
+    pub networks: Vec<Network>,
 }
 
 impl Chain {
-    pub fn new(chain: ChainEnum) -> Self {
-        match chain {
-            ChainEnum::Ethereum => Self {
-                name: chain.to_string(),
-                http_address: get_chain_link(&chain).0,
-                websocket_address: get_chain_link(&chain).1,
-                networks: vec![NetworkEnum::Mainnet, NetworkEnum::Testnet(Testnet::Goerli)],
-                is_available: get_chain_link(&chain).0 != "Not supported yet"
-                    || get_chain_link(&chain).1 != "Not supported yet",
-            },
-            _ => Self {
-                name: chain.to_string(),
-                http_address: get_chain_link(&chain).0,
-                websocket_address: get_chain_link(&chain).1,
-                networks: vec![NetworkEnum::Mainnet],
-                is_available: get_chain_link(&chain).0 != "Not supported yet"
-                    || get_chain_link(&chain).1 != "Not supported yet",
-            },
+    pub async fn get(chain: ChainEnum) -> Result<Self> {
+        let network_enums = Self::get_network_enums(&chain).await?;
+        let mut networks: Vec<Network> = vec![];
+        for network in &network_enums {
+            let network = Network::get(&chain, network).await?;
+            networks.push(network);
         }
+        Ok(Self {
+            name: chain.to_string(),
+            networks,
+        })
     }
+
     pub fn have_network(&self, network: &str) -> bool {
         let network = match network.parse::<NetworkEnum>() {
             Ok(n) => n,
             Err(_) => return false,
         };
-        self.networks.iter().any(|n| n == &network)
+        self.networks.iter().any(|n| n.name == network.to_string())
+    }
+
+    pub async fn get_network(&self, network: &str) -> Result<Network> {
+        let network = match network.parse::<NetworkEnum>() {
+            Ok(n) => n,
+            Err(_) => return Err(anyhow!("{} is not a valid network", network)),
+        };
+        let network = self
+            .networks
+            .iter()
+            .find(|n| n.name == network.to_string())
+            .ok_or_else(|| anyhow!("{} is not a valid network", network))?;
+        Ok(network.clone())
+    }
+
+    pub async fn get_network_enums(chain: &ChainEnum) -> Result<Vec<NetworkEnum>> {
+        let rows = sqlx::query!(
+            r#"
+        SELECT network
+        FROM chains
+        WHERE name = $1
+        "#,
+            chain.to_string().to_lowercase()
+        )
+        .fetch_all(&db::get_pool()?)
+        .await
+        .map_err(|e| {
+            tracing::error!("Error getting network enums for chain => {} : {}", chain, e);
+            anyhow!(
+                "Failed to get chain networks from db for chain => {} : {}",
+                chain,
+                e
+            )
+        })?;
+        let mut networks = vec![];
+        for row in rows {
+            let network = match row.network.parse::<NetworkEnum>() {
+                Ok(n) => n,
+                Err(_) => continue,
+            };
+            networks.push(network);
+        }
+        Ok(networks)
     }
 }
 
@@ -127,10 +163,10 @@ impl fmt::Display for NetworkEnum {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             NetworkEnum::Mainnet => write!(f, "Mainnet"),
-            NetworkEnum::Testnet(Testnet::Ropsten) => write!(f, "Testnet - Ropsten"),
-            NetworkEnum::Testnet(Testnet::Rinkeby) => write!(f, "Testnet - Rinkeby"),
-            NetworkEnum::Testnet(Testnet::Kovan) => write!(f, "Testnet - Kovan"),
-            NetworkEnum::Testnet(Testnet::Goerli) => write!(f, "Testnet - Goerli"),
+            NetworkEnum::Testnet(Testnet::Ropsten) => write!(f, "Testnet-Ropsten"),
+            NetworkEnum::Testnet(Testnet::Rinkeby) => write!(f, "Testnet-Rinkeby"),
+            NetworkEnum::Testnet(Testnet::Kovan) => write!(f, "Testnet-Kovan"),
+            NetworkEnum::Testnet(Testnet::Goerli) => write!(f, "Testnet-Goerli"),
         }
     }
 }
@@ -156,11 +192,52 @@ impl FromStr for NetworkEnum {
     }
 }
 
-/// 返回链的 http 和 websocket 地址
-fn get_chain_link(chain: &ChainEnum) -> (String, String) {
-    let chain_http = format!("{}_HTTP", chain.to_string().to_uppercase());
-    let chain_ws = format!("{}_WS", chain.to_string().to_uppercase());
-    let http_link = std::env::var(chain_http).unwrap_or_else(|_| "Not supported yet".to_string());
-    let ws_link = std::env::var(chain_ws).unwrap_or_else(|_| "Not supported yet".to_string());
-    (http_link, ws_link)
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct Network {
+    pub name: String,
+    pub http_address: String,
+    pub websocket_address: String,
+}
+
+impl Network {
+    pub async fn get(chain: &ChainEnum, network: &NetworkEnum) -> Result<Self> {
+        let (http_address, websocket_address) = get_chain_link_from_db(chain, network).await?;
+        Ok(Self {
+            name: network.to_string(),
+            http_address,
+            websocket_address,
+        })
+    }
+}
+
+async fn get_chain_link_from_db(
+    chain: &ChainEnum,
+    network: &NetworkEnum,
+) -> Result<(String, String)> {
+    let row = sqlx::query!(
+        r#"
+        SELECT http_address, websocket_address
+        FROM chains
+        WHERE name = $1 AND network = $2
+        "#,
+        chain.to_string().to_lowercase(),
+        network.to_string().to_lowercase()
+    )
+    .fetch_optional(&db::get_pool()?)
+    .await
+    .map_err(|e| anyhow!("Failed to get chain link from db: {}", e))?;
+    let row = match row {
+        Some(r) => r,
+        None => {
+            return Err(anyhow!(
+                "No chain link found for chain => {} and network => {}",
+                chain,
+                network
+            ))
+        }
+    };
+    let http_address = row.http_address;
+    let ws_address = row.websocket_address;
+
+    Ok((http_address, ws_address))
 }

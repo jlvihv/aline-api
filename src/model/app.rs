@@ -3,7 +3,7 @@ use chrono::Local;
 use serde::{Deserialize, Serialize};
 
 use super::{
-    chain::{self, ChainEnum, NetworkEnum},
+    chain::{Chain, ChainEnum, NetworkEnum},
     code_examples::examples,
     db, log_parse,
 };
@@ -34,7 +34,7 @@ impl App {
         chain: ChainEnum,
         network: NetworkEnum,
     ) -> Result<Self> {
-        let ch = chain::Chain::new(chain.clone());
+        let ch = Chain::get(chain.clone()).await?;
         if !ch.have_network(&network.to_string()) {
             return Err(anyhow!("Network not found"));
         }
@@ -48,7 +48,7 @@ impl App {
             created_at: Local::now().to_string(),
             ..Default::default()
         };
-        app.generate_key()?;
+        app.generate_key().await?;
         app.save().await?;
         app.generate_code_example(chain);
         Ok(app)
@@ -152,19 +152,19 @@ impl App {
         Ok(())
     }
 
-    fn generate_key(&mut self) -> Result<()> {
+    async fn generate_key(&mut self) -> Result<()> {
         let uid = uuid::Uuid::new_v4();
         self.api_key = format!(
             "{:x}",
             md5::compute(format!("{}-{}-{}", self.account, self.id, uid))
         );
-        let chain = match self.chain.parse::<chain::ChainEnum>() {
+        let chain = match self.chain.parse::<ChainEnum>() {
             Ok(c) => c,
             Err(_) => return Err(anyhow!("Chain not found")),
         };
-        let chain = chain::Chain::new(chain);
-        self.http_link = format!("{}/{}", chain.http_address, self.api_key);
-        self.websocket_link = format!("{}/{}", chain.websocket_address, self.api_key);
+        let network = Chain::get(chain).await?.get_network(&self.network).await?;
+        self.http_link = format!("{}/{}", network.http_address, self.api_key);
+        self.websocket_link = format!("{}/{}", network.websocket_address, self.api_key);
         Ok(())
     }
 

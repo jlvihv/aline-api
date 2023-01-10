@@ -3,7 +3,7 @@ version: '3.1'
 services:
 
   db:
-    container_name: db
+    container_name: node-service-db
     image: postgres
     restart: always
     ports:
@@ -11,17 +11,17 @@ services:
     volumes:
       - ./db_init:/docker-entrypoint-initdb.d
     environment:
-      POSTGRES_PASSWORD: test123
+      POSTGRES_PASSWORD: hamster-node-service-very-good!
 
   adminer:
-    container_name: adminer
+    container_name: node-service-adminer
     image: adminer
     restart: always
     ports:
       - 9913:8080
 
   nginx:
-    container_name: nginx
+    container_name: node-service-nginx
     image: nginx
     ports:
       - "9912:80"

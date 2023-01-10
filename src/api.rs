@@ -73,7 +73,16 @@ impl Response {
 }
 
 pub async fn chains() -> impl IntoResponse {
-    match serde_json::to_value(ChainEnum::get_all()) {
+    let result = match ChainEnum::get_all().await {
+        Ok(chains) => chains,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(Response::new(e.to_string(), serde_json::Value::Null, None)),
+            )
+        }
+    };
+    match serde_json::to_value(result) {
         Ok(result) => (
             StatusCode::OK,
             Json(Response::new("ok".to_string(), result, None)),
@@ -89,7 +98,13 @@ pub async fn networks(Path(chain): Path<String>) -> impl IntoResponse {
     let Ok(chain) = chain.parse::<ChainEnum>() else {
         return (StatusCode::BAD_REQUEST, Json(Response::new("chain invalid".to_string(), serde_json::Value::Null, None)));
     };
-    match serde_json::to_value(Chain::new(chain).networks) {
+    let Ok(the_networks) = Chain::get_network_enums(&chain).await else {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(Response::new(format!("can not get networks for chain {}", chain), serde_json::Value::Null, None)),
+            )
+    };
+    match serde_json::to_value(the_networks) {
         Ok(result) => (
             StatusCode::OK,
             Json(Response::new("ok".to_string(), result, None)),
