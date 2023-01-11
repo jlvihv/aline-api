@@ -29,60 +29,60 @@ INSERT INTO chains (name, network, http_address, websocket_address)
 VALUES (
         'ethereum',
         'mainnet',
-        'http://34.232.105.81:9912/ethereum',
-        'http://34.232.105.81:9912/ethereum-ws'
+        'https://ethereum.api.hamsternet.io',
+        'wss://ethereum-ws.api.hamsternet.io'
     ),
     (
         'ethereum',
         'testnet-goerli',
-        'http://34.232.105.81:9912/ethereum-goerli',
-        'http://34.232.105.81:9912/ethereum-ws-goerli'
+        'https://ethereum-goerli.api.hamsternet.io',
+        'wss://ethereum-goerli-ws.api.hamsternet.io'
     ),
     (
         'sui',
         'mainnet',
-        'http://34.232.105.81:9912/sui',
-        'http://34.232.105.81:9912/sui-ws'
+        'https://sui.api.hamsternet.io',
+        'wss://sui-ws.api.hamsternet.io'
     ),
     (
         'avalanche',
         'mainnet',
-        'http://34.232.105.81:9912/avalanche',
+        'https://avalanche.api.hamsternet.io',
         ''
     ),
     (
         'optimism',
         'mainnet',
-        'http://34.232.105.81:9912/optimism',
-        'http://34.232.105.81:9912/optimism-ws'
+        'https://optimism.api.hamsternet.io',
+        'wss://optimism-ws.api.hamsternet.io'
     ),
     (
         'near',
         'mainnet',
-        'http://34.232.105.81:9912/near',
+        'https://near.api.hamsternet.io',
         ''
     ),
     (
         'starkware',
         'mainnet',
-        'http://34.232.105.81:9912/starknet',
+        'https://starkware.api.hamsternet.io',
         ''
     ),
     (
         'bsc',
         'mainnet',
-        'http://34.232.105.81:9912/bsc',
-        'http://34.232.105.81:9912/bsc-ws'
+        'https://bsc.api.hamsternet.io',
+        'wss://bsc-ws.api.hamsternet.io'
     ),
     (
         'aptos',
         'mainnet',
-        'http://34.232.105.81:9912/aptos',
+        'https://aptos.api.hamsternet.io',
         ''
     ),
     (
         'polygon',
         'mainnet',
-        'http://34.232.105.81:9912/polygon',
+        'https://polygon.api.hamsternet.io',
         ''
     );
